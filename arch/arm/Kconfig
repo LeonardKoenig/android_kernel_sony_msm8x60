@@ -279,7 +279,6 @@ config GENERIC_TIME_VSYSCALL
 	  Enables updating the kernel user helper area with the xtime struct
 	  data for gettimeofday via kernel user helpers.
 
-
 config ARM_USE_USER_ACCESSIBLE_TIMERS
 	bool "Enables mapping a timer counter page to user space"
 	depends on USE_USER_ACCESSIBLE_TIMERS && GENERIC_TIME_VSYSCALL
@@ -295,6 +294,7 @@ config ARM_USER_ACCESSIBLE_TIMER_BASE
 	 Specify the base user-space virtual address where the user-accessible
 	 timer counter page should be mapped by the kernel.  User-space apps
 	 will read directly from the page at this address.
+
 
 source "init/Kconfig"
 
@@ -319,6 +319,7 @@ choice
 
 config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
+	select ARCH_HAS_CPUFREQ
 	select ARM_AMBA
 	select ARCH_HAS_CPUFREQ
 	select CLKDEV_LOOKUP

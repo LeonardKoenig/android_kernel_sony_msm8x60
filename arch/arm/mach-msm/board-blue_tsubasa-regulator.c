@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
- * Copyright (C) 2012 Sony Mobile Communications AB.
+ * Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -37,7 +36,7 @@ VREG_CONSUMERS(L2) = {
 	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_camera_ov2720.0"),
 	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csid.0"),
 	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csid.1"),
-
+	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csid.2"),
 };
 VREG_CONSUMERS(L3) = {
 	REGULATOR_SUPPLY("8921_l3",		NULL),
@@ -66,10 +65,10 @@ VREG_CONSUMERS(L8) = {
 };
 VREG_CONSUMERS(L9) = {
 	REGULATOR_SUPPLY("8921_l9",		NULL),
-	REGULATOR_SUPPLY("apds9702_vdd",	"12-0054"),
-	REGULATOR_SUPPLY("lsm303_acc_vdd",	"12-0019"),
-	REGULATOR_SUPPLY("akm8963_vdd",		"12-000c"),
-	REGULATOR_SUPPLY("l3gd20_gyro_vdd",	"12-006b"),
+	REGULATOR_SUPPLY("prox_vdd",		"12-0054"),
+	REGULATOR_SUPPLY("gyro_vdd",		"12-0068"),
+	REGULATOR_SUPPLY("acc_vdd",		"12-0018"),
+	REGULATOR_SUPPLY("mag_vdd",		"12-000c"),
 	REGULATOR_SUPPLY("vdd",			"3-0024"),
 	REGULATOR_SUPPLY("vdd_ana",		"3-004a"),
 };
@@ -81,10 +80,10 @@ VREG_CONSUMERS(L10) = {
 VREG_CONSUMERS(L11) = {
 	REGULATOR_SUPPLY("8921_l11",		NULL),
 	REGULATOR_SUPPLY("cam_vana",		"4-001a"),
-	REGULATOR_SUPPLY("cam_vana",		"4-0010"),
 #if defined(CONFIG_SONY_CAM_V4L2)
 	REGULATOR_SUPPLY("cam_vana",		"4-003d"),
 #endif
+	REGULATOR_SUPPLY("cam_vana",		"4-0010"),
 	REGULATOR_SUPPLY("cam_vana",		"4-006c"),
 	REGULATOR_SUPPLY("cam_vana",		"4-0048"),
 	REGULATOR_SUPPLY("cam_vana",		"4-0020"),
@@ -118,8 +117,7 @@ VREG_CONSUMERS(L16) = {
 };
 VREG_CONSUMERS(L17) = {
 	REGULATOR_SUPPLY("8921_l17",		NULL),
-	REGULATOR_SUPPLY("clearpad_vdd",	NULL),
-	REGULATOR_SUPPLY("cyttsp4_vdd",		NULL),
+	REGULATOR_SUPPLY("touch_vdd",		"3-002c"),
 };
 VREG_CONSUMERS(L18) = {
 	REGULATOR_SUPPLY("8921_l18",		NULL),
@@ -132,6 +130,7 @@ VREG_CONSUMERS(L22) = {
 };
 VREG_CONSUMERS(L23) = {
 	REGULATOR_SUPPLY("8921_l23",		NULL),
+	REGULATOR_SUPPLY("dsi_pll_vddio",	"mdp.0"),
 	REGULATOR_SUPPLY("hdmi_avdd",		"hdmi_msm.0"),
 	REGULATOR_SUPPLY("pll_vdd",		"pil_riva"),
 	REGULATOR_SUPPLY("pll_vdd",		"pil_qdsp6v4.1"),
@@ -163,7 +162,6 @@ VREG_CONSUMERS(L28) = {
 VREG_CONSUMERS(L29) = {
 	REGULATOR_SUPPLY("8921_l29",		NULL),
 	REGULATOR_SUPPLY("dsi_vddio",		"mipi_dsi.1"),
-	REGULATOR_SUPPLY("dsi_pll_vddio",	"mdp.0"),
 };
 VREG_CONSUMERS(S1) = {
 	REGULATOR_SUPPLY("8921_s1",		NULL),
@@ -194,9 +192,8 @@ VREG_CONSUMERS(S4) = {
 	REGULATOR_SUPPLY("CDC_VDD_CP",		"tabla2x-slim"),
 	REGULATOR_SUPPLY("CDC_VDDA_TX",		"tabla2x-slim"),
 	REGULATOR_SUPPLY("CDC_VDDA_RX",		"tabla2x-slim"),
-	REGULATOR_SUPPLY("vcc_i2c",		"3-005b"),
 	REGULATOR_SUPPLY("EXT_HUB_VDDIO",	"msm_smsc_hub"),
-	REGULATOR_SUPPLY("vcc_i2c",		"10-0048"),
+	REGULATOR_SUPPLY("touch_vio",		"3-002c"),
 };
 VREG_CONSUMERS(S5) = {
 	REGULATOR_SUPPLY("8921_s5",		NULL),
@@ -227,24 +224,21 @@ VREG_CONSUMERS(LVS3) = {
 };
 VREG_CONSUMERS(LVS4) = {
 	REGULATOR_SUPPLY("8921_lvs4",		NULL),
-	REGULATOR_SUPPLY("apds9702_vio",	"12-0054"),
-	REGULATOR_SUPPLY("lsm303_acc_vio",	"12-0019"),
-	REGULATOR_SUPPLY("l3gd20_gyro_vio",	"12-006b"),
-	REGULATOR_SUPPLY("akm8963_vio",		"12-000c"),
 	REGULATOR_SUPPLY("vcc_i2c",		"3-0024"),
 	REGULATOR_SUPPLY("vcc_i2c",		"3-004a"),
 };
 VREG_CONSUMERS(LVS5) = {
 	REGULATOR_SUPPLY("8921_lvs5",		NULL),
 	REGULATOR_SUPPLY("cam_vio",		"4-001a"),
-	REGULATOR_SUPPLY("cam_vio",		"4-0010"),
 #if defined(CONFIG_SONY_CAM_V4L2)
 	REGULATOR_SUPPLY("cam_vio",		"4-003d"),
 #endif
+	REGULATOR_SUPPLY("cam_vio",		"4-0010"),
 	REGULATOR_SUPPLY("cam_vio",		"4-006c"),
 	REGULATOR_SUPPLY("cam_vio",		"4-0048"),
 	REGULATOR_SUPPLY("cam_vio",		"4-0020"),
 	REGULATOR_SUPPLY("cam_vio",		"4-0034"),
+	REGULATOR_SUPPLY("lm3560_ntc",		"10-0053"),
 };
 /* This mapping is used for CDP only. */
 VREG_CONSUMERS(CDP_LVS6) = {
@@ -265,10 +259,6 @@ VREG_CONSUMERS(USB_OTG) = {
 };
 VREG_CONSUMERS(HDMI_MVS) = {
 	REGULATOR_SUPPLY("8921_hdmi_mvs",	NULL),
-	REGULATOR_SUPPLY("hdmi_mvs",		"hdmi_msm.0"),
-};
-VREG_CONSUMERS(EXT_5V) = {
-	REGULATOR_SUPPLY("ext_5v",			NULL),
 };
 
 #define PM8XXX_VREG_INIT(_id, _name, _min_uV, _max_uV, _modes, _ops, \
@@ -491,12 +481,6 @@ VREG_CONSUMERS(EXT_5V) = {
 		.pin_ctrl = _pin_ctrl, \
 	}
 
-/* GPIO regulator constraints */
-struct gpio_regulator_platform_data msm_gpio_regulator_pdata[] __devinitdata = {
-	/*        ID      vreg_name gpio_label   gpio                  supply */
-	GPIO_VREG(EXT_5V, "ext_5v", "ext_5v_en", PM8921_MPP_PM_TO_SYS(7), NULL),
-};
-
 /* SAW regulator constraints */
 struct regulator_init_data msm_saw_regulator_pdata_s5 =
 	/*	      ID  vreg_name	       min_uV   max_uV */
@@ -520,9 +504,9 @@ msm_pm8921_regulator_pdata[] __devinitdata = {
 	PM8XXX_LDO(L29,      "8921_l29", 0, 1, 1800000, 1800000, 200, "8921_s8",
 		0, 4),
 
-	/*           ID        name     always_on pd       en_t supply reg_ID */
-	PM8XXX_VS300(USB_OTG,  "8921_usb_otg",  0, 0,         0, "ext_5v", 5),
-	PM8XXX_VS300(HDMI_MVS, "8921_hdmi_mvs", 0, 0, 0,   "ext_5v", 6),
+	/*	     ID        name      always_on pd en_t supply    reg_ID */
+	PM8XXX_VS300(USB_OTG,  "8921_usb_otg",  0, 1, 0,   NULL, 5),
+	PM8XXX_VS300(HDMI_MVS, "8921_hdmi_mvs", 0, 1, 0,   NULL, 6),
 };
 
 static struct rpm_regulator_init_data
@@ -541,17 +525,17 @@ msm_rpm_regulator_init_data[] __devinitdata = {
 	RPM_LDO(L3,	 0, 1, 0, 3075000, 3075000, NULL,      0, 0),
 	RPM_LDO(L4,	 1, 1, 0, 1800000, 1800000, NULL,      10000, 10000),
 	RPM_LDO(L5,	 0, 1, 0, 2950000, 2950000, NULL,      0, 0),
-	RPM_LDO(L6,	 0, 1, 0, 2950000, 2950000, NULL,      0, 0),
+	RPM_LDO(L6,	 1, 1, 0, 2950000, 2950000, NULL,      0, 0),
 	RPM_LDO(L7,	 1, 1, 0, 1850000, 2950000, NULL,      10000, 10000),
 	RPM_LDO(L8,	 0, 1, 0, 2800000, 3000000, NULL,      0, 0),
 	RPM_LDO(L9,	 0, 1, 0, 2850000, 2850000, NULL,      0, 0),
 	RPM_LDO(L10,	 0, 1, 0, 3000000, 3000000, NULL,      0, 0),
 	RPM_LDO(L11,	 0, 1, 0, 2600000, 3000000, NULL,      0, 0),
-	RPM_LDO(L12,	 0, 1, 0, 1050000, 1200000, "8921_s4", 0, 0),
+	RPM_LDO(L12,	 0, 1, 0, 1200000, 1200000, "8921_s4", 0, 0),
 	RPM_LDO(L14,	 0, 1, 0, 1800000, 1800000, NULL,      0, 0),
 	RPM_LDO(L15,	 0, 1, 0, 1800000, 2950000, NULL,      0, 0),
 	RPM_LDO(L16,	 0, 1, 0, 2600000, 3000000, NULL,      0, 0),
-	RPM_LDO(L17,	 1, 1, 0, 1800000, 3000000, NULL,      0, 0),
+	RPM_LDO(L17,	 0, 1, 0, 1800000, 3000000, NULL,      0, 0),
 	RPM_LDO(L18,	 0, 1, 0, 1200000, 1200000, "8921_s4", 0, 0),
 	RPM_LDO(L21,	 0, 1, 0, 1900000, 1900000, "8921_s8", 0, 0),
 	RPM_LDO(L22,	 0, 1, 0, 2750000, 2750000, NULL,      0, 0),

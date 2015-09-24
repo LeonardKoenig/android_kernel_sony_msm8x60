@@ -20,50 +20,14 @@
 #include <mach/gpiomux.h>
 #include "devices.h"
 #include "board-8960.h"
-
-#ifdef CONFIG_MSM_CAMERA
-#if defined(CONFIG_SONY_CAM_V4L2)
-#include <mach/camera.h>
+#ifdef CONFIG_SONY_CAM_V4L2
 #include <media/sony_camera_v4l2.h>
 #include <linux/v4l2-mediabus.h>
 #endif
-#endif
 
 #ifdef CONFIG_MSM_CAMERA
 
-#if defined(CONFIG_SONY_CAM_V4L2)
-static struct gpiomux_setting gpio_2ma_no_pull_low = {
-		.func = GPIOMUX_FUNC_GPIO,
-		.drv = GPIOMUX_DRV_2MA,
-		.pull = GPIOMUX_PULL_NONE,
-		.dir = GPIOMUX_OUT_LOW,
-};
-
-static struct gpiomux_setting cam_mclk = {
-		.func = GPIOMUX_FUNC_1,
-		.drv = GPIOMUX_DRV_6MA,
-		.pull = GPIOMUX_PULL_NONE,
-};
-
-static struct gpiomux_setting cam_mclk1 = {
-		.func = GPIOMUX_FUNC_2,
-		.drv = GPIOMUX_DRV_6MA,
-		.pull = GPIOMUX_PULL_NONE,
-};
-
-static struct gpiomux_setting gpio_2ma_pull_down_in = {
-		.func = GPIOMUX_FUNC_GPIO,
-		.drv = GPIOMUX_DRV_2MA,
-		.pull = GPIOMUX_PULL_DOWN,
-		.dir = GPIOMUX_IN,
-};
-
-static struct gpiomux_setting gsbi4 = {
-		.func = GPIOMUX_FUNC_1,  /* gsbi4 */
-		.drv = GPIOMUX_DRV_4MA,
-		.pull = GPIOMUX_PULL_NONE,
-};
-#else
+#if !defined(CONFIG_SONY_CAM_V4L2)
 #ifdef CONFIG_MSM_CAMERA_FLASH
 #if (defined(CONFIG_GPIO_SX150X) || defined(CONFIG_GPIO_SX150X_MODULE)) && \
 	defined(CONFIG_I2C)
@@ -83,7 +47,41 @@ static struct msm_cam_expander_info cam_expander_info[] = {
 };
 #endif
 #endif
+#endif
 
+#if defined(CONFIG_SONY_CAM_V4L2)
+static struct gpiomux_setting cam_mclk = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_6MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting gpio_2ma_no_pull_low = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_NONE,
+	.dir = GPIOMUX_OUT_LOW,
+};
+
+static struct gpiomux_setting cam_mclk1 = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_6MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting gpio_2ma_pull_down_in = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_IN,
+};
+
+static struct gpiomux_setting gsbi4 = {
+	.func = GPIOMUX_FUNC_1,  /* gsbi4 */
+	.drv = GPIOMUX_DRV_4MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+#else
 static struct gpiomux_setting cam_settings[] = {
 	{
 		.func = GPIOMUX_FUNC_GPIO, /*suspend*/
@@ -140,7 +138,9 @@ static struct gpiomux_setting cam_settings[] = {
 	},
 
 };
+#endif
 
+#if !defined(CONFIG_SONY_CAM_V4L2)
 static struct msm_gpiomux_config msm8960_cdp_flash_configs[] = {
 	{
 		.gpio = 3,
@@ -349,14 +349,24 @@ static struct msm_bus_vectors cam_preview_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_VFE,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
+#if defined(CONFIG_SONY_CAM_V4L2)
+		.ab = 139968000,
+		.ib = 559872000,
+#else
 		.ab  = 27648000,
 		.ib  = 2656000000UL,
+#endif
 	},
 	{
 		.src = MSM_BUS_MASTER_VPE,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
+#if defined(CONFIG_SONY_CAM_V4L2)
+		.ab = 279936000,
+		.ib = 699840000,
+#else
 		.ab  = 0,
 		.ib  = 0,
+#endif
 	},
 	{
 		.src = MSM_BUS_MASTER_JPEG_ENC,
@@ -382,14 +392,24 @@ static struct msm_bus_vectors cam_video_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_VFE,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
+#if defined(CONFIG_SONY_CAM_V4L2)
+		.ab = 121305600,
+		.ib = 485222400,
+#else
 		.ab  = 600000000,
 		.ib  = 2656000000UL,
+#endif
 	},
 	{
 		.src = MSM_BUS_MASTER_VPE,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
+#if defined(CONFIG_SONY_CAM_V4L2)
+		.ab = 214617600,
+		.ib = 494553600,
+#else
 		.ab  = 206807040,
 		.ib  = 488816640,
+#endif
 	},
 	{
 		.src = MSM_BUS_MASTER_JPEG_ENC,
@@ -415,20 +435,35 @@ static struct msm_bus_vectors cam_snapshot_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_VFE,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
+#if defined(CONFIG_SONY_CAM_V4L2)
+		.ab = 295401600,
+		.ib = 1181606400,
+#else
 		.ab  = 600000000,
 		.ib  = 2656000000UL,
+#endif
 	},
 	{
 		.src = MSM_BUS_MASTER_VPE,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
+#if defined(CONFIG_SONY_CAM_V4L2)
+		.ab = 590803200,
+		.ib = 1477008000,
+#else
 		.ab  = 0,
 		.ib  = 0,
+#endif
 	},
 	{
 		.src = MSM_BUS_MASTER_JPEG_ENC,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
+#if defined(CONFIG_SONY_CAM_V4L2)
+		.ab = 590803200,
+		.ib = 590803200,
+#else
 		.ab  = 540000000,
 		.ib  = 1350000000,
+#endif
 	},
 	{
 		.src = MSM_BUS_MASTER_JPEG_ENC,
@@ -448,8 +483,8 @@ static struct msm_bus_vectors cam_zsl_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_VFE,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 800000000,
-		.ib  = 4264000000UL,
+		.ab  = 600000000,
+		.ib  = 2656000000UL,
 	},
 	{
 		.src = MSM_BUS_MASTER_VPE,
@@ -460,8 +495,13 @@ static struct msm_bus_vectors cam_zsl_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_JPEG_ENC,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab  = 0,
+#if defined(CONFIG_SONY_CAM_V4L2)
+		.ab = 1521190000,
+		.ib = 1521190000,
+#else
+		.ab  = 540000000,
 		.ib  = 1350000000,
+#endif
 	},
 	{
 		.src = MSM_BUS_MASTER_JPEG_ENC,
@@ -612,17 +652,17 @@ static struct msm_camera_device_platform_data msm_camera_csi_device_data[] = {
 	},
 };
 
-#if defined(CONFIG_SONY_CAM_V4L2)
+#ifdef CONFIG_SONY_CAM_V4L2
 static struct camera_vreg_t msm_8960_back_cam_vreg[] = {
-	{"cam_vana", REG_LDO, 2800000, 3000000, 85600},
-	{"cam_vio", REG_VS, 0, 0, 0 },
-	{"cam_vdig", REG_LDO, 1050000, 1200000, 105000},
-	{"cam_vaf", REG_LDO, 2700000, 3000000, 300000},
+	{ "cam_vana", REG_LDO, 2600000, 3000000, 85600 },
+	{ "cam_vio", REG_VS, 0, 0, 0 },
+	{ "cam_vdig", REG_LDO, 1200000, 1200000, 105000 },
+	{ "cam_vaf", REG_LDO, 2600000, 3000000, 300000 },
 };
 
 static struct camera_vreg_t msm_8960_front_cam_vreg[] = {
-	{"cam_vana", REG_LDO, 2800000, 3000000, 85600, 50},
-	{"cam_vio", REG_VS, 0, 0, 0, 50},
+	{ "cam_vana", REG_LDO, 2600000, 3000000, 85600 },
+	{ "cam_vio", REG_VS, 0, 0, 0 },
 };
 #else
 static struct camera_vreg_t msm_8960_cam_vreg[] = {
@@ -635,7 +675,7 @@ static struct camera_vreg_t msm_8960_cam_vreg[] = {
 
 static struct gpio msm8960_common_cam_gpio[] = {
 #if defined(CONFIG_SONY_CAM_V4L2)
-	{4, GPIOF_DIR_IN, "CAMIF_MCLK"},
+	{ 4, GPIOF_DIR_IN, "CAMIF_MCLK" },
 #endif
 	{5, GPIOF_DIR_IN, "CAMIF_MCLK"},
 	{20, GPIOF_DIR_IN, "CAMIF_I2C_DATA"},
@@ -643,25 +683,25 @@ static struct gpio msm8960_common_cam_gpio[] = {
 };
 
 static struct gpio msm8960_front_cam_gpio[] = {
-#if defined(CONFIG_SONY_CAM_V4L2)
-	{18, GPIOF_DIR_OUT, "CAM_RESET"},
+#ifdef CONFIG_SONY_CAM_V4L2
+	{ 18, GPIOF_DIR_OUT, "CAM_RESET" },
 #else
 	{76, GPIOF_DIR_OUT, "CAM_RESET"},
 #endif
 };
 
 static struct gpio msm8960_back_cam_gpio[] = {
-#if defined(CONFIG_SONY_CAM_V4L2)
-	{1, GPIOF_DIR_OUT, "CAM_RESET"},
+#ifdef CONFIG_SONY_CAM_V4L2
+	{ 1, GPIOF_DIR_OUT, "CAM_RESET" },
 #else
 	{107, GPIOF_DIR_OUT, "CAM_RESET"},
 #endif
 };
 
 static struct msm_gpio_set_tbl msm8960_front_cam_gpio_set_tbl[] = {
-#if defined(CONFIG_SONY_CAM_V4L2)
-	{18, GPIOF_OUT_INIT_LOW, 1},
-	{18, GPIOF_OUT_INIT_HIGH, 1000},
+#ifdef CONFIG_SONY_CAM_V4L2
+	{ 18, GPIOF_OUT_INIT_LOW, 1 },
+	{ 18, GPIOF_OUT_INIT_HIGH, 1000 },
 #else
 	{76, GPIOF_OUT_INIT_LOW, 1000},
 	{76, GPIOF_OUT_INIT_HIGH, 4000},
@@ -669,9 +709,9 @@ static struct msm_gpio_set_tbl msm8960_front_cam_gpio_set_tbl[] = {
 };
 
 static struct msm_gpio_set_tbl msm8960_back_cam_gpio_set_tbl[] = {
-#if defined(CONFIG_SONY_CAM_V4L2)
-	{1, GPIOF_OUT_INIT_LOW, 1},
-	{1, GPIOF_OUT_INIT_HIGH, 1000},
+#ifdef CONFIG_SONY_CAM_V4L2
+	{ 1, GPIOF_OUT_INIT_LOW, 1 },
+	{ 1, GPIOF_OUT_INIT_HIGH, 1000 },
 #else
 	{107, GPIOF_OUT_INIT_LOW, 1000},
 	{107, GPIOF_OUT_INIT_HIGH, 4000},
@@ -706,12 +746,13 @@ static struct msm_camera_sensor_flash_data msm_camera_flash_none = {
 	.flash_src = NULL,
 };
 
-
-static struct msm_camera_csi_lane_params sony_main_csi_lane_params = {
+static struct msm_camera_csi_lane_params msm_camera_csi_lane_params = {
 	.csi_lane_assign = 0xE4,
 	.csi_lane_mask = 0xF,
 };
+#endif
 
+#ifdef CONFIG_SONY_CAM_V4L2
 static struct msm_camera_sensor_platform_info
 		msm_camera_sony_sensor_main_platform_info = {
 	.mount_angle = 90,
@@ -719,7 +760,7 @@ static struct msm_camera_sensor_platform_info
 	.cam_vreg = msm_8960_back_cam_vreg,
 	.num_vreg = ARRAY_SIZE(msm_8960_back_cam_vreg),
 	.gpio_conf = &msm_8960_back_cam_gpio_conf,
-	.csi_lane_params = &sony_main_csi_lane_params,
+	.csi_lane_params = &msm_camera_csi_lane_params,
 };
 
 static struct msm_camera_sensor_info
@@ -731,31 +772,6 @@ static struct msm_camera_sensor_info
 	.sensor_platform_info = &msm_camera_sony_sensor_main_platform_info,
 	.csi_if = 1,
 	.camera_type = BACK_CAMERA_2D,
-};
-
-static struct msm_camera_csi_lane_params sony_sub_csi_lane_params = {
-	.csi_lane_assign = 0xE4,
-	.csi_lane_mask = 0xF,
-};
-static struct msm_camera_sensor_platform_info
-		msm_camera_sony_sensor_sub_platform_info = {
-	.mount_angle = 90,
-	.sensor_reset = 18,
-	.cam_vreg = msm_8960_front_cam_vreg,
-	.num_vreg = ARRAY_SIZE(msm_8960_front_cam_vreg),
-	.gpio_conf = &msm_8960_front_cam_gpio_conf,
-	.csi_lane_params = &sony_sub_csi_lane_params,
-};
-
-static struct msm_camera_sensor_info
-		msm_camera_sony_sensor_sub_sensor_info = {
-	.sensor_name = "sony_camera_1",
-	.sensor_reset = 18,
-	.pdata = &msm_camera_csi_device_data[1],
-	.flash_data = &msm_camera_flash_none,
-	.sensor_platform_info = &msm_camera_sony_sensor_sub_platform_info,
-	.csi_if = 1,
-	.camera_type = FRONT_CAMERA_2D,
 };
 #else
 static struct i2c_board_info msm_act_main_cam_i2c_info = {
@@ -823,7 +839,30 @@ static struct msm_camera_sensor_info msm_camera_sensor_imx074_data = {
 	.actuator_info = &msm_act_main_cam_0_info,
 	.eeprom_info = &imx074_eeprom_info,
 };
+#endif
 
+#ifdef CONFIG_SONY_CAM_V4L2
+static struct msm_camera_sensor_platform_info
+		msm_camera_sony_sensor_sub_platform_info = {
+	.mount_angle = 90,
+	.sensor_reset = 18,
+	.cam_vreg = msm_8960_front_cam_vreg,
+	.num_vreg = ARRAY_SIZE(msm_8960_front_cam_vreg),
+	.gpio_conf = &msm_8960_front_cam_gpio_conf,
+	.csi_lane_params = &msm_camera_csi_lane_params,
+};
+
+static struct msm_camera_sensor_info
+		msm_camera_sony_sensor_sub_sensor_info = {
+	.sensor_name = "sony_camera_1",
+	.sensor_reset = 18,
+	.pdata = &msm_camera_csi_device_data[1],
+	.flash_data = &msm_camera_flash_none,
+	.sensor_platform_info = &msm_camera_sony_sensor_sub_platform_info,
+	.csi_if = 1,
+	.camera_type = FRONT_CAMERA_2D,
+};
+#else
 static struct msm_camera_sensor_flash_data flash_mt9m114 = {
 	.flash_type = MSM_CAMERA_FLASH_NONE
 };
@@ -883,7 +922,9 @@ static struct msm_camera_sensor_info msm_camera_sensor_ov2720_data = {
 	.camera_type = FRONT_CAMERA_2D,
 	.sensor_type = BAYER_SENSOR,
 };
+#endif
 
+#if !defined(CONFIG_SONY_CAM_V4L2)
 static struct msm_camera_sensor_flash_data flash_s5k3l1yx = {
 	.flash_type = MSM_CAMERA_FLASH_NONE,
 };
@@ -991,7 +1032,9 @@ static struct msm_camera_sensor_info msm_camera_sensor_imx135_data = {
 	.sensor_type = BAYER_SENSOR,
 	.actuator_info = &msm_act_main_cam_1_info,
 };
+#endif
 
+#if !defined(CONFIG_SONY_CAM_V4L2)
 static struct pm8xxx_mpp_config_data privacy_light_on_config = {
 	.type		= PM8XXX_MPP_TYPE_SINK,
 	.level		= PM8XXX_MPP_CS_OUT_5MA,
@@ -1115,7 +1158,7 @@ void __init msm8960_init_cam(void)
 static struct i2c_board_info msm8960_camera_i2c_boardinfo[] = {
 #if defined(CONFIG_SONY_CAM_V4L2)
 	{
-		I2C_BOARD_INFO("sony_camera_0", 0x10),
+		I2C_BOARD_INFO("sony_camera_0", 0x1A),
 		.platform_data = &msm_camera_sony_sensor_main_sensor_info,
 	},
 	{
@@ -1169,14 +1212,14 @@ static const struct sony_camera_seq sensor_main_power_off[] = {
 	{ SONY_CAM_VAF, -1, 0 },
 	{ SONY_CAM_VANA, -1, 1 },
 	{ SONY_CAM_VIO, -1, 1 },
-	{ SONY_CAM_VDIG, -1, 65 },
+	{ SONY_CAM_VDIG, -1, 15 },
 	{ EXIT, 0, 0 },
 };
 
 static const struct sony_camera_seq sensor_main_power_on[] = {
-	{ SONY_CAM_VDIG, 1100, 1 },
+	{ SONY_CAM_VDIG, 1200, 1 },
 	{ SONY_CAM_VIO, 0, 1 },
-	{ SONY_CAM_VANA, 2800, 0 },
+	{ SONY_CAM_VANA, 2850, 0 },
 	{ SONY_CAM_VAF, 2700, 1 },
 	{ SONY_GPIO_RESET, 1, 9 },
 	{ SONY_CAM_CLK, 0, 1 },
@@ -1184,24 +1227,24 @@ static const struct sony_camera_seq sensor_main_power_on[] = {
 };
 
 static const struct sony_camera_seq sensor_sub_power_off[] = {
+	{ SONY_GPIO_RESET, 0, 1 },
 	{ SONY_CAM_CLK, -1, 1 },
-	{ SONY_CAM_VIO, -1, 20 },
-	{ SONY_CAM_VANA, -1, 100 },
+	{ SONY_CAM_VANA, -1, 0 },
+	{ SONY_CAM_VIO, -1, 0 },
 	{ EXIT, 0, 0 },
 };
 
 static const struct sony_camera_seq sensor_sub_power_on[] = {
 	{ SONY_CAM_VIO, 0, 1 },
-	{ SONY_CAM_VANA, 2800, 1 },
+	{ SONY_CAM_VANA, 2850, 1 },
 	{ SONY_CAM_CLK, 0, 200 },
 	{ EXIT, 0, 0 },
 };
 
 static const struct sony_camera_module sensor_main_modules[] = {
 	{ "GENERIC",  sensor_main_power_on, sensor_main_power_off },
-	{ "SMC08BS2", sensor_main_power_on, sensor_main_power_off },
-	{ "SOI08BS2", sensor_main_power_on, sensor_main_power_off },
-	{ "SOI08BS3", sensor_main_power_on, sensor_main_power_off },
+	{ "SOI13BS0", sensor_main_power_on, sensor_main_power_off },
+	{ "KMO13BS0", sensor_main_power_on, sensor_main_power_off },
 };
 
 static const struct sony_camera_module sensor_sub_modules[] = {
@@ -1212,7 +1255,7 @@ static const struct sony_camera_module sensor_sub_modules[] = {
 
 const struct sony_camera_info camera_info[] = {
 	{
-		.i2c_addr = 0x10,
+		.i2c_addr = 0x1A,
 		.eeprom_addr = 0x50,
 		.eeprom_type = 0,
 		.eeprom_max_len = 2048,
@@ -1220,7 +1263,7 @@ const struct sony_camera_info camera_info[] = {
 		.subdev_code = V4L2_MBUS_FMT_SBGGR10_1X10,
 		.modules = sensor_main_modules,
 		.modules_num = ARRAY_SIZE(sensor_main_modules),
-		.default_module_name = "SOI08BS2",
+		.default_module_name = "SOI13BS0",
 	},
 	{
 		.i2c_addr = 0x3d,
@@ -1231,7 +1274,7 @@ const struct sony_camera_info camera_info[] = {
 		.subdev_code = V4L2_MBUS_FMT_YUYV8_2X8,
 		.modules = sensor_sub_modules,
 		.modules_num = ARRAY_SIZE(sensor_sub_modules),
-		.default_module_name = "APT00YP1",
+		.default_module_name = "STW01BM0",
 	},
 };
 #endif

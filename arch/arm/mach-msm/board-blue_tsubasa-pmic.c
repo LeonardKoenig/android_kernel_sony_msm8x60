@@ -1,4 +1,5 @@
 /* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2013 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,11 +19,12 @@
 #include <linux/leds.h>
 #include <linux/leds-pm8xxx.h>
 #include <linux/msm_ssbi.h>
-#include <linux/gpio_event.h>
 #include <linux/gpio_keys.h>
 #include <asm/mach-types.h>
 #include <mach/msm_bus_board.h>
 #include <mach/restart.h>
+#include <mach/pm8921-mic_bias.h>
+#include <mach/simple_remote_msm8960_pf.h>
 #include "devices.h"
 #include "board-8960.h"
 
@@ -99,7 +101,6 @@ struct pm8xxx_mpp_init {
 
 /* Initial PM8921 GPIO configurations */
 static struct pm8xxx_gpio_init pm8921_gpios[] __initdata = {
-	/* SPKR_RIGHT_EN (GPIO_19) is set by Audio driver */
 
 	/* UIM1_RST_CONN (GPIO_27),
 	   UIM1_CLK_MSM  (GPIO_29) and
@@ -126,29 +127,56 @@ static struct pm8xxx_gpio_init pm8921_gpios[] __initdata = {
 	PM8XXX_GPIO_DISABLE(16),
 	PM8XXX_GPIO_DISABLE(17),
 	PM8XXX_GPIO_DISABLE(18),
+	PM8XXX_GPIO_DISABLE(23),
 	PM8XXX_GPIO_DISABLE(24),
 	PM8XXX_GPIO_DISABLE(25),
 	PM8XXX_GPIO_DISABLE(28),
-	PM8XXX_GPIO_DISABLE(31),
-	PM8XXX_GPIO_DISABLE(32),
 	PM8XXX_GPIO_DISABLE(37),
 	PM8XXX_GPIO_DISABLE(41),
 	PM8XXX_GPIO_DISABLE(44),
 
 	/* OTHERS */
+	/* Right speaker enable */
+	PM8XXX_GPIO_OUTPUT_STRENGTH(19, 0, PM_GPIO_STRENGTH_MED),
 	PM8XXX_GPIO_INPUT(20,	PM_GPIO_PULL_UP_30),	/* VOLUME_DOWN_KEY */
 	PM8XXX_GPIO_INPUT(21,	PM_GPIO_PULL_UP_30),	/* VOLUME_UP_KEY */
 	PM8XXX_GPIO_OUTPUT(22,  0),			/* RF_ID_EN */
-	PM8XXX_GPIO_OUTPUT(23,  0),			/* XBULK_SEL */
 	PM8XXX_GPIO_INPUT(26,	PM_GPIO_PULL_NO),	/* SD_CARD_DET_N */
+#if defined(CONFIG_SONY_FELICA_SUPPORT) && !defined(CONFIG_NFC_PN544)
+	/* FELICA_LOCK */
+	PM8XXX_GPIO_INIT(31, PM_GPIO_DIR_IN, PM_GPIO_OUT_BUF_CMOS, 0, \
+				PM_GPIO_PULL_NO, PM_GPIO_VIN_L17, \
+				PM_GPIO_STRENGTH_NO, \
+				PM_GPIO_FUNC_NORMAL, 0, 0),
+	/* FELICA_FF */
+	PM8XXX_GPIO_INIT(32, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0, \
+				PM_GPIO_PULL_NO, PM_GPIO_VIN_L17, \
+				PM_GPIO_STRENGTH_LOW, \
+				PM_GPIO_FUNC_NORMAL, 0, 0),
+	/* FELICA_PON */
+	PM8XXX_GPIO_INIT(33, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_CMOS, 0, \
+				PM_GPIO_PULL_NO, PM_GPIO_VIN_S4, \
+				PM_GPIO_STRENGTH_LOW, \
+				PM_GPIO_FUNC_NORMAL, 0, 0),
+	/* NFC_EXT_LDO_EN */
+	PM8XXX_GPIO_OUTPUT_STRENGTH(35, 0, PM_GPIO_STRENGTH_LOW),
+#elif !defined(CONFIG_SONY_FELICA_SUPPORT) && defined(CONFIG_NFC_PN544)
+	PM8XXX_GPIO_DISABLE(31),
+	PM8XXX_GPIO_DISABLE(32),
 	/* NFC_EXT_EN */
 	PM8XXX_GPIO_INIT(33, PM_GPIO_DIR_OUT, PM_GPIO_OUT_BUF_OPEN_DRAIN, 0, \
 				PM_GPIO_PULL_NO, PM_GPIO_VIN_VPH, \
 				PM_GPIO_STRENGTH_LOW, \
 				PM_GPIO_FUNC_NORMAL, 0, 0),
+	PM8XXX_GPIO_DISABLE(35),
+#else
+	PM8XXX_GPIO_DISABLE(31),
+	PM8XXX_GPIO_DISABLE(32),
+	PM8XXX_GPIO_DISABLE(33),
+	PM8XXX_GPIO_DISABLE(35),
+#endif
 	/* WCD9310_RESET_N */
-	PM8XXX_GPIO_OUTPUT_STRENGTH(34, 0, PM_GPIO_STRENGTH_MED),
-	PM8XXX_GPIO_OUTPUT(35,  0),			/* XBULK_EN */
+	PM8XXX_GPIO_OUTPUT_STRENGTH(34, 1, PM_GPIO_STRENGTH_MED),
 	PM8XXX_GPIO_INPUT(36,	PM_GPIO_PULL_UP_30),	/* SIM_DET_N */
 	PM8XXX_GPIO_INPUT(38,	PM_GPIO_PULL_NO),	/* PLUG_DET */
 	/* For CDB compatible  */
@@ -169,6 +197,7 @@ static struct pm8xxx_gpio_init pm8921_gpios[] __initdata = {
 static struct pm8xxx_mpp_init pm8921_mpps[] __initdata = {
 	PM8XXX_MPP_INIT(PM8XXX_AMUX_MPP_8, A_INPUT, PM8XXX_MPP_AIN_AMUX_CH8,
 								DOUT_CTRL_LOW),
+	PM8XXX_MPP_INIT(4, D_OUTPUT, PM8921_MPP_DIG_LEVEL_S4, DOUT_CTRL_LOW),
 };
 
 void __init msm8960_pm8921_gpio_mpp_init(void)
@@ -206,6 +235,8 @@ static struct pm8xxx_adc_amux pm8xxx_adc_channels_data[] = {
 	{"vph_pwr", CHANNEL_VPH_PWR, CHAN_PATH_SCALING2, AMUX_RSV1,
 		ADC_DECIMATION_TYPE2, ADC_SCALE_DEFAULT},
 	{"ibat", CHANNEL_IBAT, CHAN_PATH_SCALING1, AMUX_RSV1,
+		ADC_DECIMATION_TYPE2, ADC_SCALE_DEFAULT},
+	{"m4", CHANNEL_MPP_1, CHAN_PATH_SCALING1, AMUX_RSV1,
 		ADC_DECIMATION_TYPE2, ADC_SCALE_DEFAULT},
 	{"batt_therm", CHANNEL_BATT_THERM, CHAN_PATH_SCALING1, AMUX_RSV2,
 		ADC_DECIMATION_TYPE2, ADC_SCALE_BATT_THERM},
@@ -267,173 +298,52 @@ static struct pm8xxx_pwrkey_platform_data pm8xxx_pwrkey_pdata = {
 	.wakeup			= 1,
 };
 
-/* Rotate lock key is not available so use F1 */
-#define KEY_ROTATE_LOCK KEY_F1
-
-static const unsigned int keymap_liquid[] = {
-	KEY(0, 0, KEY_VOLUMEUP),
-	KEY(0, 1, KEY_VOLUMEDOWN),
-	KEY(1, 3, KEY_ROTATE_LOCK),
-	KEY(1, 4, KEY_HOME),
+static struct gpio_keys_button gpio_keys_buttons[] = {
+	{
+		.code = KEY_VOLUMEDOWN,
+		.gpio = PM8921_GPIO_PM_TO_SYS(20),
+		.active_low = 1,
+		.desc = "volume down",
+		.type = EV_KEY,
+		.wakeup = 1,
+		.debounce_interval = 10,
+	},
+	{
+		.code = KEY_VOLUMEUP,
+		.gpio = PM8921_GPIO_PM_TO_SYS(21),
+		.active_low = 1,
+		.desc = "volume up",
+		.type = EV_KEY,
+		.wakeup = 1,
+		.debounce_interval = 10,
+	},
 };
 
-static struct matrix_keymap_data keymap_data_liquid = {
-	.keymap_size    = ARRAY_SIZE(keymap_liquid),
-	.keymap         = keymap_liquid,
+static struct gpio_keys_platform_data gpio_keys_pdata = {
+	.buttons = gpio_keys_buttons,
+	.nbuttons = 2,
 };
 
-static struct pm8xxx_keypad_platform_data keypad_data_liquid = {
-	.input_name             = "keypad_8960_liquid",
-	.input_phys_device      = "keypad_8960/input0",
-	.num_rows               = 2,
-	.num_cols               = 5,
-	.rows_gpio_start	= PM8921_GPIO_PM_TO_SYS(9),
-	.cols_gpio_start	= PM8921_GPIO_PM_TO_SYS(1),
-	.debounce_ms            = 15,
-	.scan_delay_ms          = 32,
-	.row_hold_ns            = 91500,
-	.wakeup                 = 1,
-	.keymap_data            = &keymap_data_liquid,
+static struct platform_device gpio_keys_device = {
+	.name = "gpio-keys",
+	.id = 0,
+	.dev = { .platform_data = &gpio_keys_pdata },
+	.num_resources = 0,
+	.resource = NULL,
 };
 
-/* Keypad only support camera key */
-static const unsigned int keymap[] = {
-	KEY(1, 0, KEY_CAMERA_FOCUS),
-	KEY(1, 1, KEY_CAMERA_SNAPSHOT),
-};
+static int __init input_devices_init(void)
+{
+	platform_device_register(&gpio_keys_device);
+	return 0;
+}
+static void __exit input_devices_exit(void)
+{
+	platform_device_unregister(&gpio_keys_device);
+}
 
-static struct matrix_keymap_data keymap_data = {
-	.keymap_size    = ARRAY_SIZE(keymap),
-	.keymap         = keymap,
-};
-
-static struct pm8xxx_keypad_platform_data keypad_data = {
-	.input_name             = "keypad_8960",
-	.input_phys_device      = "keypad_8960/input0",
-	.num_rows               = 2,
-	.num_cols               = 5,
-	.rows_gpio_start	= PM8921_GPIO_PM_TO_SYS(9),
-	.cols_gpio_start	= PM8921_GPIO_PM_TO_SYS(1),
-	.debounce_ms            = 15,
-	.scan_delay_ms          = 32,
-	.row_hold_ns            = 91500,
-	.wakeup                 = 1,
-	.keymap_data            = &keymap_data,
-};
-
-static const unsigned int keymap_sim[] = {
-	KEY(0, 0, KEY_7),
-	KEY(0, 1, KEY_DOWN),
-	KEY(0, 2, KEY_UP),
-	KEY(0, 3, KEY_RIGHT),
-	KEY(0, 4, KEY_ENTER),
-	KEY(0, 5, KEY_L),
-	KEY(0, 6, KEY_BACK),
-	KEY(0, 7, KEY_M),
-
-	KEY(1, 0, KEY_LEFT),
-	KEY(1, 1, KEY_SEND),
-	KEY(1, 2, KEY_1),
-	KEY(1, 3, KEY_4),
-	KEY(1, 4, KEY_CLEAR),
-	KEY(1, 5, KEY_MSDOS),
-	KEY(1, 6, KEY_SPACE),
-	KEY(1, 7, KEY_COMMA),
-
-	KEY(2, 0, KEY_6),
-	KEY(2, 1, KEY_5),
-	KEY(2, 2, KEY_8),
-	KEY(2, 3, KEY_3),
-	KEY(2, 4, KEY_NUMERIC_STAR),
-	KEY(2, 5, KEY_UP),
-	KEY(2, 6, KEY_DOWN),
-	KEY(2, 7, KEY_LEFTSHIFT),
-
-	KEY(3, 0, KEY_9),
-	KEY(3, 1, KEY_NUMERIC_POUND),
-	KEY(3, 2, KEY_0),
-	KEY(3, 3, KEY_2),
-	KEY(3, 4, KEY_SLEEP),
-	KEY(3, 5, KEY_F1),
-	KEY(3, 6, KEY_F2),
-	KEY(3, 7, KEY_F3),
-
-	KEY(4, 0, KEY_BACK),
-	KEY(4, 1, KEY_HOME),
-	KEY(4, 2, KEY_MENU),
-	KEY(4, 3, KEY_VOLUMEUP),
-	KEY(4, 4, KEY_VOLUMEDOWN),
-	KEY(4, 5, KEY_F4),
-	KEY(4, 6, KEY_F5),
-	KEY(4, 7, KEY_F6),
-
-	KEY(5, 0, KEY_R),
-	KEY(5, 1, KEY_T),
-	KEY(5, 2, KEY_Y),
-	KEY(5, 3, KEY_LEFTALT),
-	KEY(5, 4, KEY_KPENTER),
-	KEY(5, 5, KEY_Q),
-	KEY(5, 6, KEY_W),
-	KEY(5, 7, KEY_E),
-
-	KEY(6, 0, KEY_F),
-	KEY(6, 1, KEY_G),
-	KEY(6, 2, KEY_H),
-	KEY(6, 3, KEY_CAPSLOCK),
-	KEY(6, 4, KEY_PAGEUP),
-	KEY(6, 5, KEY_A),
-	KEY(6, 6, KEY_S),
-	KEY(6, 7, KEY_D),
-
-	KEY(7, 0, KEY_V),
-	KEY(7, 1, KEY_B),
-	KEY(7, 2, KEY_N),
-	KEY(7, 3, KEY_MENU),
-	KEY(7, 4, KEY_PAGEDOWN),
-	KEY(7, 5, KEY_Z),
-	KEY(7, 6, KEY_X),
-	KEY(7, 7, KEY_C),
-
-	KEY(8, 0, KEY_P),
-	KEY(8, 1, KEY_J),
-	KEY(8, 2, KEY_K),
-	KEY(8, 3, KEY_INSERT),
-	KEY(8, 4, KEY_LINEFEED),
-	KEY(8, 5, KEY_U),
-	KEY(8, 6, KEY_I),
-	KEY(8, 7, KEY_O),
-
-	KEY(9, 0, KEY_4),
-	KEY(9, 1, KEY_5),
-	KEY(9, 2, KEY_6),
-	KEY(9, 3, KEY_7),
-	KEY(9, 4, KEY_8),
-	KEY(9, 5, KEY_1),
-	KEY(9, 6, KEY_2),
-	KEY(9, 7, KEY_3),
-
-	KEY(10, 0, KEY_F7),
-	KEY(10, 1, KEY_F8),
-	KEY(10, 2, KEY_F9),
-	KEY(10, 3, KEY_F10),
-	KEY(10, 4, KEY_FN),
-	KEY(10, 5, KEY_9),
-	KEY(10, 6, KEY_0),
-	KEY(10, 7, KEY_DOT),
-
-	KEY(11, 0, KEY_LEFTCTRL),
-	KEY(11, 1, KEY_F11),
-	KEY(11, 2, KEY_ENTER),
-	KEY(11, 3, KEY_SEARCH),
-	KEY(11, 4, KEY_DELETE),
-	KEY(11, 5, KEY_RIGHT),
-	KEY(11, 6, KEY_LEFT),
-	KEY(11, 7, KEY_RIGHTSHIFT),
-	KEY(0, 0, KEY_VOLUMEUP),
-	KEY(0, 1, KEY_VOLUMEDOWN),
-	KEY(0, 2, KEY_CAMERA_SNAPSHOT),
-	KEY(0, 3, KEY_CAMERA_FOCUS),
-};
+module_init(input_devices_init);
+module_exit(input_devices_exit);
 
 static int pm8921_therm_mitigation[] = {
 	1525,
@@ -444,7 +354,7 @@ static int pm8921_therm_mitigation[] = {
 
 #define MAX_VOLTAGE_MV		4200
 #define V_CUTOFF_MV		3200
-#define CHG_TERM_MA		115
+#define CHG_TERM_MA		70
 static struct pm8921_charger_platform_data pm8921_chg_pdata __devinitdata = {
 	.update_time		= 30000,
 	.max_voltage		= MAX_VOLTAGE_MV,
@@ -452,8 +362,8 @@ static struct pm8921_charger_platform_data pm8921_chg_pdata __devinitdata = {
 	.uvd_thresh_voltage	= 4050,
 	.alarm_low_mv		= V_CUTOFF_MV,
 	.alarm_high_mv		= V_CUTOFF_MV + 100,
-	.resume_voltage_delta	= 120,
-	.resume_charge_percent	= 95,
+	.resume_voltage_delta	= 60,
+	.resume_charge_percent	= 99,
 	.term_current		= CHG_TERM_MA,
 	.cool_temp		= 10,
 	.warm_temp		= 45,
@@ -461,14 +371,14 @@ static struct pm8921_charger_platform_data pm8921_chg_pdata __devinitdata = {
 	.temp_check_period	= 1,
 	.max_bat_chg_current	= 1525,
 	.cool_bat_chg_current	= 1525,
-	.warm_bat_chg_current	= 350,
+	.warm_bat_chg_current	= 325,
 	.cool_bat_voltage	= 4200,
 	.warm_bat_voltage	= 4000,
 	.thermal_mitigation	= pm8921_therm_mitigation,
 	.thermal_levels		= ARRAY_SIZE(pm8921_therm_mitigation),
 	.rconn_mohm		= 18,
-	.soc_scaling		= 1,
 	.btc_override		= 1,
+	.soc_scaling		= 1,
 	.btc_override_cold_degc	= 5,
 	.btc_override_hot_degc	= 55,
 	.btc_delay_ms		= 10000,
@@ -485,7 +395,7 @@ static struct pm8921_bms_platform_data pm8921_bms_pdata __devinitdata = {
 	.r_sense_uohm			= 10000,
 	.v_cutoff			= V_CUTOFF_MV,
 	.max_voltage_uv			= MAX_VOLTAGE_MV * 1000,
-	.rconn_mohm			= 20,
+	.rconn_mohm			= 30,
 	.shutdown_soc_valid_limit	= 20,
 	.adjust_soc_low_threshold	= 25,
 	.chg_term_ua			= CHG_TERM_MA * 1000,
@@ -493,8 +403,6 @@ static struct pm8921_bms_platform_data pm8921_bms_pdata __devinitdata = {
 	.low_voltage_calc_ms		= 1000,
 	.alarm_low_mv			= V_CUTOFF_MV,
 	.alarm_high_mv			= V_CUTOFF_MV + 100,
-	.high_ocv_correction_limit_uv	= 50,
-	.low_ocv_correction_limit_uv	= 100,
 	.hold_soc_est			= 3,
 	.low_voltage_detect		= 1,
 	.vbatt_cutoff_retries		= 5,
@@ -513,53 +421,6 @@ static struct pm8921_bms_platform_data pm8921_bms_pdata __devinitdata = {
  * driven using PWM feature.
  */
 #define PM8XXX_PWM_CHANNEL_NONE		-1
-
-static struct led_info pm8921_led_info_liquid[] = {
-	{
-		.name		= "led:red",
-		.flags		= PM8XXX_ID_LED_0,
-		.default_trigger	= "battery-charging",
-	},
-	{
-		.name		= "led:green",
-		.flags		= PM8XXX_ID_LED_0,
-		.default_trigger	= "battery-full",
-	},
-	{
-		.name		= "led:blue",
-		.flags		= PM8XXX_ID_LED_2,
-		.default_trigger	= "notification",
-	},
-};
-
-static struct pm8xxx_led_config pm8921_led_configs_liquid[] = {
-	[0] = {
-		.id = PM8XXX_ID_LED_0,
-		.mode = PM8XXX_LED_MODE_MANUAL,
-		.max_current = PM8921_LC_LED_MAX_CURRENT,
-	},
-	[1] = {
-		.id = PM8XXX_ID_LED_1,
-		.mode = PM8XXX_LED_MODE_MANUAL,
-		.max_current = PM8921_LC_LED_LOW_CURRENT,
-	},
-	[2] = {
-		.id = PM8XXX_ID_LED_2,
-		.mode = PM8XXX_LED_MODE_MANUAL,
-		.max_current = PM8921_LC_LED_MAX_CURRENT,
-	},
-};
-
-static struct led_platform_data pm8xxx_leds_core_liquid = {
-	.num_leds = ARRAY_SIZE(pm8921_led_info_liquid),
-	.leds = pm8921_led_info_liquid,
-};
-
-static struct pm8xxx_led_platform_data pm8xxx_leds_pdata_liquid = {
-	.led_core = &pm8xxx_leds_core_liquid,
-	.configs = pm8921_led_configs_liquid,
-	.num_configs = ARRAY_SIZE(pm8921_led_configs_liquid),
-};
 
 static struct led_info pm8921_led_info[] = {
 	[0] = {
@@ -627,12 +488,6 @@ static struct pm8xxx_ccadc_platform_data pm8xxx_ccadc_pdata = {
 	.calib_delay_ms		= 600000,
 };
 
-static struct pm8xxx_vibrator_platform_data pm8xxx_vibrator_pdata = {
-	.initial_vibrate_ms = 0,
-	.max_timeout_ms = 15000,
-	.level_mV = 3000,
-};
-
 /**
  * PM8XXX_PWM_DTEST_CHANNEL_NONE shall be used when no LPG
  * channel should be in DTEST mode.
@@ -644,13 +499,24 @@ static struct pm8xxx_pwm_platform_data pm8xxx_pwm_pdata = {
 	.dtest_channel	= PM8XXX_PWM_DTEST_CHANNEL_NONE,
 };
 
+static struct pm8xxx_vibrator_platform_data pm8xxx_vibrator_pdata = {
+	.initial_vibrate_ms = 0,
+	.max_timeout_ms = 15000,
+	.level_mV = 2700,
+};
+
+#define PM8921_HSED_MIC_BIAS 0xA1
+
+struct pm8921_mic_bias_platform_data pm8921_mic_bias_pdata = {
+	.mic_bias_addr = PM8921_HSED_MIC_BIAS,
+};
+
 static struct pm8921_platform_data pm8921_platform_data __devinitdata = {
 	.irq_pdata		= &pm8xxx_irq_pdata,
 	.gpio_pdata		= &pm8xxx_gpio_pdata,
 	.mpp_pdata		= &pm8xxx_mpp_pdata,
 	.rtc_pdata              = &pm8xxx_rtc_pdata,
 	.pwrkey_pdata		= &pm8xxx_pwrkey_pdata,
-	.keypad_pdata		= &keypad_data,
 	.misc_pdata		= &pm8xxx_misc_pdata,
 	.regulator_pdatas	= msm_pm8921_regulator_pdata,
 	.charger_pdata		= &pm8921_chg_pdata,
@@ -658,8 +524,10 @@ static struct pm8921_platform_data pm8921_platform_data __devinitdata = {
 	.adc_pdata		= &pm8xxx_adc_pdata,
 	.leds_pdata		= &pm8xxx_leds_pdata,
 	.ccadc_pdata		= &pm8xxx_ccadc_pdata,
-	.vibrator_pdata		= &pm8xxx_vibrator_pdata,
 	.pwm_pdata		= &pm8xxx_pwm_pdata,
+	.vibrator_pdata		= &pm8xxx_vibrator_pdata,
+	.mic_bias_pdata		= &pm8921_mic_bias_pdata,
+	.simple_remote_pdata	= &simple_remote_pf_data,
 };
 
 static struct msm_ssbi_platform_data msm8960_ssbi_pm8921_pdata __devinitdata = {
@@ -677,96 +545,6 @@ void __init msm8960_init_pmic(void)
 				&msm8960_ssbi_pm8921_pdata;
 	pm8921_platform_data.num_regulators = msm_pm8921_regulator_pdata_len;
 
-	if (machine_is_msm8960_liquid()) {
-		pm8921_platform_data.keypad_pdata = &keypad_data_liquid;
-		pm8921_platform_data.leds_pdata = &pm8xxx_leds_pdata_liquid;
-		pm8921_platform_data.bms_pdata->battery_type = BATT_DESAY;
-	} else if (machine_is_msm8960_mtp()) {
+	if (machine_is_msm8960_mtp())
 		pm8921_platform_data.bms_pdata->battery_type = BATT_PALLADIUM;
-	} else if (machine_is_msm8960_cdp()) {
-		pm8921_chg_pdata.has_dc_supply = true;
-	}
-
-	if (machine_is_msm8960_fluid())
-		pm8921_bms_pdata.rconn_mohm = 20;
 }
-
-static struct gpio_keys_button gpio_keys_buttons[] = {
-	{
-		.code = KEY_VOLUMEDOWN,
-		.gpio = PM8921_GPIO_PM_TO_SYS(20),
-		.active_low = 1,
-		.desc = "volume down",
-		.type = EV_KEY,
-		.wakeup = 1,
-		.debounce_interval = 10,
-	},
-	{
-		.code = KEY_VOLUMEUP,
-		.gpio = PM8921_GPIO_PM_TO_SYS(21),
-		.active_low = 1,
-		.desc = "volume up",
-		.type = EV_KEY,
-		.wakeup = 1,
-		.debounce_interval = 10,
-	},
-};
-
-static struct gpio_keys_platform_data gpio_keys_pdata = {
-	.buttons = gpio_keys_buttons,
-	.nbuttons = 2,
-};
-
-static struct platform_device gpio_keys_device = {
-	.name = "gpio-keys",
-	.dev = { .platform_data = &gpio_keys_pdata },
-};
-
-
-#define GPIO_SW_SIM_DETECTION		36
-
-static struct gpio_event_direct_entry gpio_sw_gpio_map[] = {
-	{PM8921_GPIO_PM_TO_SYS(GPIO_SW_SIM_DETECTION), SW_JACK_PHYSICAL_INSERT},
-};
-
-static struct gpio_event_input_info gpio_sw_gpio_info = {
-	.info.func = gpio_event_input_func,
-	.info.no_suspend = 1,
-	.flags = 0,
-	.type = EV_SW,
-	.keymap = gpio_sw_gpio_map,
-	.keymap_size = ARRAY_SIZE(gpio_sw_gpio_map),
-};
-
-static struct gpio_event_info *pmic_keypad_info[] = {
-	&gpio_sw_gpio_info.info,
-};
-
-struct gpio_event_platform_data pmic_keypad_data = {
-	.name       = "sim-detection",
-	.info       = pmic_keypad_info,
-	.info_count = ARRAY_SIZE(pmic_keypad_info),
-};
-
-static struct platform_device pmic_keypad_device = {
-	.name	= GPIO_EVENT_DEV_NAME,
-	.id	= 0,
-	.dev	= {.platform_data = &pmic_keypad_data},
-};
-
-static int __init input_devices_init(void)
-{
-	platform_device_register(&gpio_keys_device);
-	platform_device_register(&pmic_keypad_device);
-	return 0;
-}
-
-static void __exit input_devices_exit(void)
-{
-	platform_device_unregister(&gpio_keys_device);
-	platform_device_unregister(&pmic_keypad_device);
-}
-
-module_init(input_devices_init);
-module_exit(input_devices_exit);
-

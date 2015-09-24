@@ -1,4 +1,5 @@
-/* Copyright (c) 2008-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2013, 2015 The Linux Foundation.
+ * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -15,7 +16,11 @@
 #include <linux/module.h>
 #include <linux/mempool.h>
 #include <linux/mutex.h>
+#include <linux/ratelimit.h>
 #include <asm/atomic.h>
+#include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/kmemleak.h>
 #include "diagchar.h"
 #include "diagfwd_bridge.h"
 #include "diagfwd_hsic.h"
@@ -33,6 +38,7 @@ void *diagmem_alloc(struct diagchar_dev *driver, int size, int pool_type)
 				atomic_add(1, (atomic_t *)&driver->count);
 				buf = mempool_alloc(driver->diagpool,
 								 GFP_ATOMIC);
+				kmemleak_not_leak(buf);
 			}
 			mutex_unlock(&driver->diagmem_mutex);
 		}
@@ -43,6 +49,7 @@ void *diagmem_alloc(struct diagchar_dev *driver, int size, int pool_type)
 					 (atomic_t *)&driver->count_hdlc_pool);
 				buf = mempool_alloc(driver->diag_hdlc_pool,
 								 GFP_ATOMIC);
+				kmemleak_not_leak(buf);
 			}
 		}
 	} else if (pool_type == POOL_TYPE_USER) {
@@ -52,6 +59,7 @@ void *diagmem_alloc(struct diagchar_dev *driver, int size, int pool_type)
 					(atomic_t *)&driver->count_user_pool);
 				buf = mempool_alloc(driver->diag_user_pool,
 					GFP_ATOMIC);
+				kmemleak_not_leak(buf);
 			}
 		}
 	} else if (pool_type == POOL_TYPE_WRITE_STRUCT) {
@@ -62,6 +70,7 @@ void *diagmem_alloc(struct diagchar_dev *driver, int size, int pool_type)
 				 (atomic_t *)&driver->count_write_struct_pool);
 				buf = mempool_alloc(
 				driver->diag_write_struct_pool, GFP_ATOMIC);
+				kmemleak_not_leak(buf);
 			}
 		}
 #ifdef CONFIG_DIAGFWD_BRIDGE_CODE
@@ -76,6 +85,7 @@ void *diagmem_alloc(struct diagchar_dev *driver, int size, int pool_type)
 				buf = mempool_alloc(
 					diag_hsic[index].diag_hsic_pool,
 					GFP_ATOMIC);
+				kmemleak_not_leak(buf);
 			}
 		}
 	} else if (pool_type == POOL_TYPE_HSIC_WRITE ||
@@ -90,6 +100,7 @@ void *diagmem_alloc(struct diagchar_dev *driver, int size, int pool_type)
 				buf = mempool_alloc(
 					diag_hsic[index].diag_hsic_write_pool,
 					GFP_ATOMIC);
+				kmemleak_not_leak(buf);
 			}
 		}
 #endif
@@ -223,7 +234,7 @@ void diagmem_free(struct diagchar_dev *driver, void *buf, int pool_type)
 			atomic_add(-1, (atomic_t *)
 				   &diag_hsic[index].count_hsic_pool);
 		} else
-			pr_err("diag: Attempt to free up DIAG driver HSIC mempool which is already free %d, ch = %d",
+			pr_err_ratelimited("diag: Attempt to free up DIAG driver HSIC mempool which is already free %d, ch = %d",
 				diag_hsic[index].count_hsic_pool, index);
 	} else if (pool_type == POOL_TYPE_HSIC_WRITE ||
 				pool_type == POOL_TYPE_HSIC_2_WRITE) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012, 2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -273,13 +273,17 @@ uint32_t msm_cam_find_handle_from_mctl_ptr(
 }
 
 static void msm_cam_server_send_error_evt(
-		struct msm_cam_media_controller *pmctl, int evt_type)
+		struct msm_cam_media_controller *pmctl)
 {
 	struct v4l2_event v4l2_ev;
 	v4l2_ev.id = 0;
-	v4l2_ev.type = evt_type;
+	v4l2_ev.type = V4L2_EVENT_PRIVATE_START +
+			MSM_CAM_APP_NOTIFY_ERROR_EVENT;
 	ktime_get_ts(&v4l2_ev.timestamp);
-	v4l2_event_queue(pmctl->pcam_ptr->pvdev, &v4l2_ev);
+	if (pmctl->pcam_ptr && pmctl->pcam_ptr->pvdev)
+		v4l2_event_queue(pmctl->pcam_ptr->pvdev, &v4l2_ev);
+	else
+		pr_err("invalid mctl handle for event");
 }
 
 static int msm_ctrl_cmd_done(void *arg)
@@ -311,6 +315,13 @@ static int msm_ctrl_cmd_done(void *arg)
 		goto ctrl_cmd_done_error;
 	}
 
+	if(command->queue_idx < 0 ||
+		command->queue_idx >= MAX_NUM_ACTIVE_CAMERA) {
+		pr_err("%s: Invalid value OR index %d\n", __func__,
+		  command->queue_idx);
+		goto ctrl_cmd_done_error;
+	}
+
 	if (!g_server_dev.server_queue[command->queue_idx].queue_active) {
 		pr_err("%s: Invalid queue\n", __func__);
 		goto ctrl_cmd_done_error;
@@ -339,7 +350,8 @@ static int msm_ctrl_cmd_done(void *arg)
 				max_control_command_size);
 			goto ctrl_cmd_done_error;
 		}
-		if (copy_from_user(command->value, uptr, command->length)) {
+		if (copy_from_user(command->value, (void __user *)uptr,
+			command->length)) {
 			pr_err("%s: copy_from_user failed, size=%d\n",
 				__func__, sizeof(struct msm_ctrl_cmd));
 			goto ctrl_cmd_done_error;
@@ -432,7 +444,7 @@ static int msm_server_control(struct msm_cam_server_dev *server_dev,
 
 	/* wait for config return status */
 	D("Waiting for config status\n");
-	/* wait event may be interrupted by sugnal,
+	/* wait event may be interrupted by signal,
 	 * in this case -ERESTARTSYS is returned and retry is needed.
 	 * Now we only retry once. */
 	wait_count = 2;
@@ -1061,6 +1073,12 @@ int msm_server_v4l2_subscribe_event(struct v4l2_fh *fh,
 {
 	int rc = 0;
 
+	if (!fh || !sub) {
+		pr_err("%s: NULL pointer fh 0x%p sub 0x%p",
+			__func__, fh, sub);
+		return -EINVAL;
+	}
+
 	D("%s: fh = 0x%x, type = 0x%x", __func__, (u32)fh, sub->type);
 	if (sub->type == V4L2_EVENT_ALL) {
 		/*sub->type = MSM_ISP_EVENT_START;*/
@@ -1099,6 +1117,12 @@ int msm_server_v4l2_unsubscribe_event(struct v4l2_fh *fh,
 {
 	int rc = 0;
 	struct v4l2_event ev;
+
+	if (!fh || !sub) {
+		pr_err("%s: NULL pointer fh 0x%p sub 0x%p",
+			__func__, fh, sub);
+		return -EINVAL;
+	}
 
 	D("%s: fh = 0x%x\n", __func__, (u32)fh);
 
@@ -1382,6 +1406,16 @@ static long msm_ioctl_server(struct file *file, void *fh,
 		}
 
 		mutex_lock(&g_server_dev.server_queue_lock);
+
+		if(u_isp_event.isp_data.ctrl.queue_idx < 0 ||
+		u_isp_event.isp_data.ctrl.queue_idx >= MAX_NUM_ACTIVE_CAMERA) {
+			pr_err("%s: Invalid index %d\n", __func__,
+				u_isp_event.isp_data.ctrl.queue_idx);
+			rc = -EINVAL;
+			mutex_unlock(&g_server_dev.server_queue_lock);
+			return rc;
+		}
+
 		if (!g_server_dev.server_queue
 			[u_isp_event.isp_data.ctrl.queue_idx].queue_active) {
 			pr_err("%s: Invalid queue\n", __func__);
@@ -1499,9 +1533,7 @@ static int msm_close_server(struct file *fp)
 					pmctl->mctl_release = NULL;
 				}
 				if (pmctl)
-					msm_cam_server_send_error_evt(pmctl,
-						V4L2_EVENT_PRIVATE_START +
-						MSM_CAM_APP_NOTIFY_ERROR_EVENT);
+					msm_cam_server_send_error_evt(pmctl);
 			}
 		}
 		sub.type = V4L2_EVENT_ALL;
@@ -1768,6 +1800,10 @@ static uint32_t msm_camera_server_find_mctl(
 		interface = msg->rdi_interface;
 		}
 		break;
+	case NOTIFY_VFE_WM_OVERFLOW_ERROR:
+	case NOTIFY_ISPIF_OVERFLOW_ERROR:
+		interface = 1 << *(uint32_t *)arg;
+		break;
 	case NOTIFY_VFE_MSG_STATS:
 	case NOTIFY_VFE_MSG_COMP_STATS:
 	case NOTIFY_VFE_CAMIF_ERROR:
@@ -1775,6 +1811,7 @@ static uint32_t msm_camera_server_find_mctl(
 		interface = PIX_0;
 		break;
 	}
+
 	for (i = 0; i < INTF_MAX; i++) {
 		if (interface == g_server_dev.interface_map_table[i].interface)
 			break;
@@ -1784,6 +1821,16 @@ static uint32_t msm_camera_server_find_mctl(
 		return -EINVAL;
 	} else
 		return g_server_dev.interface_map_table[i].mctl_handle;
+}
+
+void msm_cam_server_adp_cam_register(struct msm_cam_server_adp_cam *ops)
+{
+	g_server_dev.adp_cam = ops;
+}
+
+void msm_cam_server_adp_cam_deregister(void)
+{
+	g_server_dev.adp_cam = NULL;
 }
 
 static void msm_cam_server_subdev_notify(struct v4l2_subdev *sd,
@@ -1796,7 +1843,11 @@ static void msm_cam_server_subdev_notify(struct v4l2_subdev *sd,
 		(notification == NOTIFY_GESTURE_EVT)
 		|| (notification == NOTIFY_GESTURE_CAM_EVT);
 
-	if (!is_gesture_evt) {
+	int is_csi_event =
+		(notification >= NOTIFY_CSID_UNBOUNDED_FRAME_ERROR) &&
+		(notification <= NOTIFY_CSIPHY_ERROR);
+
+	if (!is_gesture_evt && !is_csi_event) {
 		mctl_handle = msm_camera_server_find_mctl(notification, arg);
 		if (mctl_handle < 0) {
 			pr_err("%s: Couldn't find mctl instance!\n", __func__);
@@ -1812,7 +1863,8 @@ static void msm_cam_server_subdev_notify(struct v4l2_subdev *sd,
 	case NOTIFY_VFE_BUF_EVT:
 		p_mctl = msm_cam_server_get_mctl(mctl_handle);
 		if (p_mctl == NULL) {
-			pr_err("%s: Not find p_mctl instance!\n", __func__);
+			pr_err("%s: Not find p_mctl instance %d!\n",
+					__func__, notification);
 			return;
 		}
 		if (p_mctl && p_mctl->isp_notify && p_mctl->vfe_sdev)
@@ -1857,19 +1909,67 @@ static void msm_cam_server_subdev_notify(struct v4l2_subdev *sd,
 		rc = v4l2_subdev_call(g_server_dev.gesture_device,
 			core, ioctl, VIDIOC_MSM_GESTURE_CAM_EVT, arg);
 		break;
+	case NOTIFY_VFE_VIOLATION_ERROR:
+	case NOTIFY_VFE_AXI_ERROR:
 	case NOTIFY_VFE_CAMIF_ERROR: {
+		pr_debug("%s - received %d VFE error!\n",
+			__func__, notification);
 		p_mctl = msm_cam_server_get_mctl(mctl_handle);
 		if (p_mctl)
-			msm_cam_server_send_error_evt(p_mctl,
-				V4L2_EVENT_PRIVATE_START +
-				MSM_CAM_APP_NOTIFY_ERROR_EVENT);
+			msm_cam_server_send_error_evt(p_mctl);
+		break;
+	}
+	case NOTIFY_VFE_WM_OVERFLOW_ERROR:
+	case NOTIFY_ISPIF_OVERFLOW_ERROR: {
+		uint32_t interface = *(uint32_t *)arg;
+		pr_debug("%s - received VFE/ISPIF %d overflow error!\n",
+			__func__, interface);
+		if (p_mctl)
+			msm_cam_server_send_error_evt(p_mctl);
+		if (g_server_dev.adp_cam &&
+			g_server_dev.adp_cam->adp_cam_cb &&
+			g_server_dev.adp_cam->interface == interface)
+				g_server_dev.adp_cam->adp_cam_cb(NULL,
+					notification, NULL);
+		break;
+	}
+	case NOTIFY_CSID_UNBOUNDED_FRAME_ERROR:
+	case NOTIFY_CSID_STREAM_UNDERFLOW_ERROR:
+	case NOTIFY_CSID_ECC_ERROR:
+	case NOTIFY_CSID_CRC_ERROR:
+	case NOTIFY_CSID_PHY_DL_OVERFLOW_ERROR: {
+		int i;
+		pr_debug("%s - received %d CSID error!\n",
+			__func__, notification);
+		for (i = 0; i < MAX_NUM_ACTIVE_CAMERA; i++)
+			if (g_server_dev.mctl[i].mctl.csid_sdev == sd)
+				msm_cam_server_send_error_evt(
+					&g_server_dev.mctl[i].mctl);
+		if (g_server_dev.adp_cam &&
+			g_server_dev.adp_cam->adp_cam_cb &&
+			g_server_dev.adp_cam->csid_sd == sd)
+				g_server_dev.adp_cam->adp_cam_cb(NULL,
+					notification, NULL);
+		break;
+	}
+	case NOTIFY_CSIPHY_ERROR: {
+		int i;
+		pr_debug("%s - received %d CSI_PHY error!\n",
+			__func__, notification);
+		for (i = 0; i < MAX_NUM_ACTIVE_CAMERA; i++)
+			if (g_server_dev.mctl[i].mctl.csiphy_sdev == sd)
+				msm_cam_server_send_error_evt(
+					&g_server_dev.mctl[i].mctl);
+		if (g_server_dev.adp_cam &&
+			g_server_dev.adp_cam->adp_cam_cb &&
+			g_server_dev.adp_cam->csiphy_sd == sd)
+				g_server_dev.adp_cam->adp_cam_cb(NULL,
+					notification, NULL);
 		break;
 	}
 	default:
 		break;
 	}
-
-	return;
 }
 
 void msm_cam_release_subdev_node(struct video_device *vdev)
@@ -2650,12 +2750,16 @@ int msm_server_send_ctrl(struct msm_ctrl_cmd *out,
 	struct msm_queue_cmd *event_qcmd;
 	struct msm_ctrl_cmd *ctrlcmd;
 	struct msm_cam_server_dev *server_dev = &g_server_dev;
-	struct msm_device_queue *queue =
-		&server_dev->server_queue[out->queue_idx].ctrl_q;
-
+	struct msm_device_queue *queue;
 	struct v4l2_event v4l2_evt;
 	struct msm_isp_event_ctrl *isp_event;
 	void *ctrlcmd_data;
+
+	if(out->queue_idx < 0 || out->queue_idx >= MAX_NUM_ACTIVE_CAMERA) {
+		pr_err("%s: Invalid index %d\n", __func__, out->queue_idx);
+		return -EINVAL;
+	}
+	queue = &server_dev->server_queue[out->queue_idx].ctrl_q;
 
 	event_qcmd = kzalloc(sizeof(struct msm_queue_cmd), GFP_KERNEL);
 	if (!event_qcmd) {

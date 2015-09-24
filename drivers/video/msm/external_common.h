@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2013, 2015 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -61,6 +61,9 @@ struct hdmi_disp_mode_list_type {
 struct external_common_state_type {
 	boolean hpd_state;
 	boolean pre_suspend_hpd_state;
+	boolean skip_edid;
+	boolean edid_en;
+	boolean hpd_en;
 	struct kobject *uevent_kobj;
 	uint32 video_resolution;
 	struct device *dev;
@@ -111,7 +114,7 @@ const struct msm_hdmi_mode_timing_info *hdmi_mhl_get_supported_mode(
 	uint32 mode);
 void hdmi_common_init_panel_info(struct msm_panel_info *pinfo);
 
-ssize_t video_3d_format_2string(uint32 format, char *buf);
+ssize_t video_3d_format_2string(uint32 format, char *buf, u32 size);
 #endif
 
 int external_common_state_create(struct platform_device *pdev);

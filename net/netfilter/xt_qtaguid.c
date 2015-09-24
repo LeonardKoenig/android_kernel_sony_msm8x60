@@ -1110,18 +1110,13 @@ static void iface_stat_create(struct net_device *net_dev,
 	spin_lock_bh(&iface_stat_list_lock);
 	entry = get_iface_entry(ifname);
 	if (entry != NULL) {
-		bool activate = !ipv4_is_loopback(ipaddr);
 		IF_DEBUG("qtaguid: iface_stat: create(%s): entry=%p\n",
 			 ifname, entry);
 		iface_check_stats_reset_and_adjust(net_dev, entry);
-		_iface_stat_set_active(entry, net_dev, activate);
+		_iface_stat_set_active(entry, net_dev, true);
 		IF_DEBUG("qtaguid: %s(%s): "
 			 "tracking now %d on ip=%pI4\n", __func__,
-			 entry->ifname, activate, &ipaddr);
-		goto done_unlock_put;
-	} else if (ipv4_is_loopback(ipaddr)) {
-		IF_DEBUG("qtaguid: iface_stat: create(%s): "
-			 "ignore loopback dev. ip=%pI4\n", ifname, &ipaddr);
+			 entry->ifname, true, &ipaddr);
 		goto done_unlock_put;
 	}
 
@@ -1135,6 +1130,7 @@ done_put:
 		in_dev_put(in_dev);
 }
 
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 static void iface_stat_create_ipv6(struct net_device *net_dev,
 				   struct inet6_ifaddr *ifa)
 {
@@ -1172,19 +1168,13 @@ static void iface_stat_create_ipv6(struct net_device *net_dev,
 	spin_lock_bh(&iface_stat_list_lock);
 	entry = get_iface_entry(ifname);
 	if (entry != NULL) {
-		bool activate = !(addr_type & IPV6_ADDR_LOOPBACK);
 		IF_DEBUG("qtaguid: %s(%s): entry=%p\n", __func__,
 			 ifname, entry);
 		iface_check_stats_reset_and_adjust(net_dev, entry);
-		_iface_stat_set_active(entry, net_dev, activate);
+		_iface_stat_set_active(entry, net_dev, true);
 		IF_DEBUG("qtaguid: %s(%s): "
 			 "tracking now %d on ip=%pI6c\n", __func__,
-			 entry->ifname, activate, &ifa->addr);
-		goto done_unlock_put;
-	} else if (addr_type & IPV6_ADDR_LOOPBACK) {
-		IF_DEBUG("qtaguid: %s(%s): "
-			 "ignore loopback dev. ip=%pI6c\n", __func__,
-			 ifname, &ifa->addr);
+			 entry->ifname, true, &ifa->addr);
 		goto done_unlock_put;
 	}
 
@@ -1197,6 +1187,7 @@ done_unlock_put:
 done_put:
 	in_dev_put(in_dev);
 }
+#endif
 
 static struct sock_tag *get_sock_stat_nl(const struct sock *sk)
 {
@@ -1219,15 +1210,20 @@ static struct sock_tag *get_sock_stat(const struct sock *sk)
 static int ipx_proto(const struct sk_buff *skb,
 		     struct xt_action_param *par)
 {
-	int thoff, tproto;
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
+	int thoff;
+#endif
+	int tproto;
 
 	switch (par->family) {
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 	case NFPROTO_IPV6:
 		tproto = ipv6_find_hdr(skb, &thoff, -1, NULL);
 		if (tproto < 0)
 			MT_DEBUG("%s(): transport header not found in ipv6"
 				 " skb=%p\n", __func__, skb);
 		break;
+#endif
 	case NFPROTO_IPV4:
 		tproto = ip_hdr(skb)->protocol;
 		break;
@@ -1529,6 +1525,7 @@ static int iface_netdev_event_handler(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 static int iface_inet6addr_event_handler(struct notifier_block *nb,
 					 unsigned long event, void *ptr)
 {
@@ -1559,6 +1556,7 @@ static int iface_inet6addr_event_handler(struct notifier_block *nb,
 	}
 	return NOTIFY_DONE;
 }
+#endif
 
 static int iface_inetaddr_event_handler(struct notifier_block *nb,
 					unsigned long event, void *ptr)
@@ -1599,9 +1597,11 @@ static struct notifier_block iface_inetaddr_notifier_blk = {
 	.notifier_call = iface_inetaddr_event_handler,
 };
 
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 static struct notifier_block iface_inet6addr_notifier_blk = {
 	.notifier_call = iface_inet6addr_event_handler,
 };
+#endif
 
 static int __init iface_stat_init(struct proc_dir_entry *parent_procdir)
 {
@@ -1652,6 +1652,7 @@ static int __init iface_stat_init(struct proc_dir_entry *parent_procdir)
 		goto err_unreg_nd;
 	}
 
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 	err = register_inet6addr_notifier(&iface_inet6addr_notifier_blk);
 	if (err) {
 		pr_err("qtaguid: iface_stat: init "
@@ -1659,9 +1660,12 @@ static int __init iface_stat_init(struct proc_dir_entry *parent_procdir)
 		goto err_unreg_ip4_addr;
 	}
 	return 0;
+#endif
 
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 err_unreg_ip4_addr:
 	unregister_inetaddr_notifier(&iface_inetaddr_notifier_blk);
+#endif
 err_unreg_nd:
 	unregister_netdevice_notifier(&iface_netdev_notifier_blk);
 err_zap_all_stats_entries:
@@ -1691,9 +1695,11 @@ static struct sock *qtaguid_find_sk(const struct sk_buff *skb,
 		return NULL;
 
 	switch (par->family) {
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 	case NFPROTO_IPV6:
 		sk = xt_socket_get6_sk(skb, par);
 		break;
+#endif
 	case NFPROTO_IPV4:
 		sk = xt_socket_get4_sk(skb, par);
 		break;
@@ -2607,8 +2613,9 @@ static int pp_stats_line(struct proc_print_info *ppi, int cnt_set)
 	} else {
 		tag_t tag = ppi->ts_entry->tn.tag;
 		uid_t stat_uid = get_uid_from_tag(tag);
-
-		if (!can_read_other_uid_stats(stat_uid)) {
+		/* Detailed tags are not available to everybody */
+		if (get_atag_from_tag(tag)
+		    && !can_read_other_uid_stats(stat_uid)) {
 			CT_DEBUG("qtaguid: stats line: "
 				 "%s 0x%llx %u: insufficient priv "
 				 "from pid=%u tgid=%u uid=%u\n",

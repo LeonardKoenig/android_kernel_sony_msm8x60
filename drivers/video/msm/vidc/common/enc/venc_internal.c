@@ -971,7 +971,7 @@ u32 vid_enc_set_get_entropy_cfg(struct video_client_ctx *client_ctx,
 	vcd_property_hdr.sz =
 		sizeof(struct vcd_property_entropy_control);
 	if (set_flag) {
-		switch (entropy_cfg->longentropysel) {
+		switch (entropy_cfg->entropysel) {
 		case VEN_ENTROPY_MODEL_CAVLC:
 			control.entropy_sel = VCD_ENTROPY_SEL_CAVLC;
 			break;
@@ -1024,11 +1024,11 @@ u32 vid_enc_set_get_entropy_cfg(struct video_client_ctx *client_ctx,
 		} else {
 			switch (control.entropy_sel) {
 			case VCD_ENTROPY_SEL_CABAC:
-				entropy_cfg->cabacmodel =
+				entropy_cfg->entropysel =
 					VEN_ENTROPY_MODEL_CABAC;
 				break;
 			case VCD_ENTROPY_SEL_CAVLC:
-				entropy_cfg->cabacmodel =
+				entropy_cfg->entropysel =
 					VEN_ENTROPY_MODEL_CAVLC;
 				break;
 			default:
@@ -1620,7 +1620,12 @@ u32 vid_enc_set_buffer(struct video_client_ctx *client_ctx,
 	enum vcd_buffer_type vcd_buffer_t = VCD_BUFFER_INPUT;
 	enum buffer_dir dir_buffer = BUFFER_TYPE_INPUT;
 	u32 vcd_status = VCD_ERR_FAIL;
-	unsigned long kernel_vaddr, length = 0;
+	unsigned long kernel_vaddr, length, user_vaddr, phy_addr = 0;
+	int pmem_fd = 0;
+	struct ion_handle *buff_handle = NULL;
+	u32 ion_flag = 0;
+	struct file *file = NULL;
+	s32 buffer_index = 0;
 
 	if (!client_ctx || !buffer_info)
 		return false;
@@ -1641,6 +1646,38 @@ u32 vid_enc_set_buffer(struct video_client_ctx *client_ctx,
 		    __func__, buffer_info->pbuffer);
 		return false;
 	}
+
+	/*
+	* Flush output buffers explcitly once, during registration. This ensures
+	* any pending CPU writes (if cleared after allocation) are
+	* committed right away, or else this may get flushed _after_
+	* the hardware has written bitstream. rare bug, but can happen !
+	*/
+	if (buffer == VEN_BUFFER_TYPE_OUTPUT) {
+		user_vaddr = (unsigned long)buffer_info->pbuffer;
+		if (!vidc_lookup_addr_table(client_ctx, BUFFER_TYPE_OUTPUT,
+					true, &user_vaddr, &kernel_vaddr,
+					&phy_addr, &pmem_fd, &file,
+					&buffer_index)) {
+			ERR("%s(): vidc_lookup_addr_table failed\n",
+			__func__);
+			return false;
+		}
+
+		ion_flag = vidc_get_fd_info(client_ctx, BUFFER_TYPE_OUTPUT,
+				buffer_info->fd, kernel_vaddr, buffer_index,
+				&buff_handle);
+
+		if (ion_flag == ION_FLAG_CACHED && buff_handle) {
+			msm_ion_do_cache_op(
+					client_ctx->user_ion_client,
+					buff_handle,
+					NULL,
+					(unsigned long) length,
+					ION_IOC_INV_CACHES);
+		}
+	}
+
 
 	vcd_status = vcd_set_buffer(client_ctx->vcd_handle,
 				    vcd_buffer_t, (u8 *) kernel_vaddr,
@@ -1710,10 +1747,12 @@ u32 vid_enc_encode_frame(struct video_client_ctx *client_ctx,
 {
 	struct vcd_frame_data vcd_input_buffer;
 	unsigned long kernel_vaddr, phy_addr, user_vaddr;
+	struct buf_addr_table *buf_addr_table;
 	int pmem_fd;
 	struct file *file;
 	s32 buffer_index = -1;
 	u32 ion_flag = 0;
+	unsigned long buff_len;
 	struct ion_handle *buff_handle = NULL;
 
 	u32 vcd_status = VCD_ERR_FAIL;
@@ -1722,6 +1761,7 @@ u32 vid_enc_encode_frame(struct video_client_ctx *client_ctx,
 		return false;
 
 	user_vaddr = (unsigned long)input_frame_info->ptrbuffer;
+	buf_addr_table = client_ctx->input_buf_addr_table;
 
 	if (vidc_lookup_addr_table(client_ctx, BUFFER_TYPE_INPUT,
 			true, &user_vaddr, &kernel_vaddr,
@@ -1731,6 +1771,17 @@ u32 vid_enc_encode_frame(struct video_client_ctx *client_ctx,
 		/* kernel_vaddr  is found. send the frame to VCD */
 		memset((void *)&vcd_input_buffer, 0,
 					sizeof(struct vcd_frame_data));
+
+		buff_len = buf_addr_table[buffer_index].buff_len;
+
+		if ((input_frame_info->len > buff_len) ||
+					(input_frame_info->offset > buff_len)) {
+			ERR("%s(): offset(%lu) or data length(%lu) is greater"\
+				" than buffer length(%lu)\n",\
+			__func__, input_frame_info->offset,
+			input_frame_info->len, buff_len);
+			return false;
+		}
 
 		vcd_input_buffer.virtual =
 		(u8 *) (kernel_vaddr + input_frame_info->offset);

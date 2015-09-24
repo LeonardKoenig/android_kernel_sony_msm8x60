@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -93,6 +93,7 @@ static void mdp4_wfd_queue_wakeup(struct msm_fb_data_type *mfd,
 		struct msmfb_writeback_data_list *node);
 static int mdp4_wfd_dequeue_update(struct msm_fb_data_type *mfd,
 		struct msmfb_writeback_data_list **wfdnode);
+static int is_wb_operation_allowed(struct msm_fb_data_type *mfd);
 
 int mdp4_overlay_writeback_on(struct platform_device *pdev)
 {
@@ -105,6 +106,7 @@ int mdp4_overlay_writeback_on(struct platform_device *pdev)
 	uint32 data;
 	struct vsycn_ctrl *vctrl;
 	int cndx = 0;
+	struct pipe_alloc alloc;
 
 	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
 
@@ -129,7 +131,10 @@ int mdp4_overlay_writeback_on(struct platform_device *pdev)
 	mdp_clk_ctrl(1);
 
 	if (vctrl->base_pipe == NULL) {
-		pipe = mdp4_overlay_pipe_alloc(OVERLAY_TYPE_BF, MDP4_MIXER2);
+		memset(&alloc, 0, sizeof(alloc));
+		alloc.ptype = OVERLAY_TYPE_BF;
+		alloc.mixer = MDP4_MIXER2;
+		pipe = mdp4_overlay_pipe_alloc(&alloc);
 		if (pipe == NULL) {
 			pr_info("%s: pipe_alloc failed\n", __func__);
 			mdp_clk_ctrl(0);
@@ -139,7 +144,7 @@ int mdp4_overlay_writeback_on(struct platform_device *pdev)
 		pipe->mixer_stage  = MDP4_MIXER_STAGE_BASE;
 		pipe->mixer_num  = MDP4_MIXER2;
 		pipe->src_format = MDP_ARGB_8888;
-		mdp4_overlay_panel_mode(pipe->mixer_num, MDP4_PANEL_WRITEBACK);
+		mdp4_overlay_panel_mode(MDP4_PANEL_WRITEBACK, pipe->mixer_num);
 		ret = mdp4_overlay_format2pipe(pipe);
 		if (ret < 0)
 			pr_info("%s: format2type failed\n", __func__);
@@ -365,6 +370,12 @@ int mdp4_wfd_pipe_commit(struct msm_fb_data_type *mfd,
 	struct msmfb_writeback_data_list *node = NULL;
 	int rc = 0;
 
+	rc = is_wb_operation_allowed(mfd);
+	if (rc) {
+		pr_debug("%s: Unable to commit, error = %d", __func__, rc);
+		return rc;
+	}
+
 	vctrl = &vsync_ctrl_db[cndx];
 
 	mutex_lock(&vctrl->update_lock);
@@ -431,8 +442,11 @@ int mdp4_wfd_pipe_commit(struct msm_fb_data_type *mfd,
 
 	mdp4_stat.overlay_commit[pipe->mixer_num]++;
 
-	if (wait)
+	if (wait) {
+		mutex_unlock(&vctrl->mfd->dma->ov_mutex);
 		mdp4_wfd_wait4ov(cndx);
+		mutex_lock(&vctrl->mfd->dma->ov_mutex);
+	}
 
 	mdp4_wfd_queue_wakeup(mfd, node);
 
@@ -593,7 +607,7 @@ static struct msmfb_writeback_data_list *get_if_registered(
 					  (ulong *)&temp->addr,
 					  (ulong *)&len,
 					  0,
-					  ION_IOMMU_UNMAP_DELAYED)) {
+					  0)) {
 				ion_free(mfd->iclient, srcp_ihdl);
 				pr_err("%s: unable to get ion mapping addr\n",
 				       __func__);
@@ -619,10 +633,26 @@ static struct msmfb_writeback_data_list *get_if_registered(
  register_alloc_fail:
 	return NULL;
 }
+
+static int is_wb_operation_allowed(struct msm_fb_data_type *mfd)
+{
+	int rc = 0;
+	if (unlikely((mfd->panel.type != WRITEBACK_PANEL) ||
+		!(mfd->writeback_initialized)))
+		rc = -EPERM;
+	return rc;
+}
+
 int mdp4_writeback_start(
 		struct fb_info *info)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
+	int rc = 0;
+	rc = is_wb_operation_allowed(mfd);
+	if (rc) {
+		pr_err("\n%s: Unable to start, error = %d", __func__, rc);
+		return rc;
+	}
 	mutex_lock(&mfd->writeback_mutex);
 	mfd->writeback_state = WB_START;
 	mutex_unlock(&mfd->writeback_mutex);
@@ -634,14 +664,20 @@ int mdp4_writeback_queue_buffer(struct fb_info *info, struct msmfb_data *data)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 	struct msmfb_writeback_data_list *node = NULL;
-	int rv = 0;
+	int rc = 0;
+
+	rc = is_wb_operation_allowed(mfd);
+	if (rc) {
+		pr_err("\n%s: Unable to queue, error = %d", __func__, rc);
+		return rc;
+	}
 
 	mutex_lock(&mfd->writeback_mutex);
 	node = get_if_registered(mfd, data);
 	if (!node || node->state == IN_BUSY_QUEUE ||
 		node->state == IN_FREE_QUEUE) {
 		pr_err("memory not registered or Buffer already with us\n");
-		rv = -EINVAL;
+		rc = -EINVAL;
 		goto exit;
 	}
 
@@ -650,7 +686,7 @@ int mdp4_writeback_queue_buffer(struct fb_info *info, struct msmfb_data *data)
 
 exit:
 	mutex_unlock(&mfd->writeback_mutex);
-	return rv;
+	return rc;
 }
 static int is_buffer_ready(struct msm_fb_data_type *mfd)
 {
@@ -666,6 +702,12 @@ int mdp4_writeback_dequeue_buffer(struct fb_info *info, struct msmfb_data *data)
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 	struct msmfb_writeback_data_list *node = NULL;
 	int rc = 0, domain;
+
+	rc = is_wb_operation_allowed(mfd);
+	if (rc) {
+		pr_err("\n%s: Unable to Dequeue, error = %d", __func__, rc);
+		return rc;
+	}
 
 	rc = wait_event_interruptible(mfd->wait_q, is_buffer_ready(mfd));
 	if (rc) {
@@ -718,6 +760,13 @@ static bool is_writeback_inactive(struct msm_fb_data_type *mfd)
 int mdp4_writeback_stop(struct fb_info *info)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
+	int rc = 0;
+
+	rc = is_wb_operation_allowed(mfd);
+	if (rc) {
+		pr_err("\n%s: Unable to stop, error = %d", __func__, rc);
+		return rc;
+	}
 	mutex_lock(&mfd->writeback_mutex);
 	mfd->writeback_state = WB_STOPING;
 	mutex_unlock(&mfd->writeback_mutex);
@@ -732,13 +781,18 @@ int mdp4_writeback_stop(struct fb_info *info)
 int mdp4_writeback_init(struct fb_info *info)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
-	mutex_init(&mfd->writeback_mutex);
-	mutex_init(&mfd->unregister_mutex);
+
+	if (mfd->panel.type != WRITEBACK_PANEL)
+		return -ENOTSUPP;
+
+	mutex_lock(&mfd->writeback_mutex);
 	INIT_LIST_HEAD(&mfd->writeback_free_queue);
 	INIT_LIST_HEAD(&mfd->writeback_busy_queue);
 	INIT_LIST_HEAD(&mfd->writeback_register_queue);
 	mfd->writeback_state = WB_OPEN;
 	init_waitqueue_head(&mfd->wait_q);
+	mfd->writeback_initialized = true;
+	mutex_unlock(&mfd->writeback_mutex);
 	return 0;
 }
 int mdp4_writeback_terminate(struct fb_info *info)
@@ -747,6 +801,12 @@ int mdp4_writeback_terminate(struct fb_info *info)
 	struct msmfb_writeback_data_list *temp;
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 	int rc = 0;
+
+	rc = is_wb_operation_allowed(mfd);
+	if (rc) {
+		pr_err("\n%s: Unable to terminate, error = %d", __func__, rc);
+		return rc;
+	}
 
 	mutex_lock(&mfd->unregister_mutex);
 	mutex_lock(&mfd->writeback_mutex);
@@ -769,10 +829,7 @@ int mdp4_writeback_terminate(struct fb_info *info)
 			kfree(temp);
 		}
 	}
-	INIT_LIST_HEAD(&mfd->writeback_register_queue);
-	INIT_LIST_HEAD(&mfd->writeback_busy_queue);
-	INIT_LIST_HEAD(&mfd->writeback_free_queue);
-
+	mfd->writeback_initialized = false;
 
 terminate_err:
 	mutex_unlock(&mfd->writeback_mutex);

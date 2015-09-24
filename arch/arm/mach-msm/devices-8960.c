@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1510,30 +1510,9 @@ struct platform_device msm_8960_q6_mss_sw = {
 	.dev.platform_data = &msm_8960_q6_mss_sw_data,
 };
 
-static struct resource msm_8960_riva_resources[] = {
-	{
-		.start  = 0x03204000,
-		.end    = 0x03204000 + SZ_256 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-};
-
-struct platform_device msm_8960_riva = {
-	.name = "pil_riva",
-	.id = -1,
-	.num_resources  = ARRAY_SIZE(msm_8960_riva_resources),
-	.resource       = msm_8960_riva_resources,
-};
-
 struct platform_device msm_pil_tzapps = {
 	.name = "pil_tzapps",
 	.id = -1,
-};
-
-struct platform_device msm_pil_dsps = {
-	.name          = "pil_dsps",
-	.id            = -1,
-	.dev.platform_data = "dsps",
 };
 
 struct platform_device msm_pil_vidc = {
@@ -1768,6 +1747,29 @@ struct platform_device msm8960_device_dmov = {
 		.platform_data = &msm_dmov_pdata,
 	},
 };
+#define MSM_UIO_RMTFS_BASE	0x8FB00000
+#define MSM_UIO_RMTFS_END	(MSM_UIO_RMTFS_BASE + 0x300000)
+
+static struct resource msm_device_uio_rmtfs_rsc[] = {
+	{
+		.name	= "rmtfs",
+		.flags	= IORESOURCE_MEM,
+		.start	= MSM_UIO_RMTFS_BASE,
+		.end	= MSM_UIO_RMTFS_END - 1,
+	},
+};
+
+struct platform_device msm_device_uio_rmtfs = {
+	.name		= "msm_sharedmem",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(msm_device_uio_rmtfs_rsc),
+	.resource	= msm_device_uio_rmtfs_rsc,
+};
+
+int __init msm_add_uio()
+{
+	return platform_device_register(&msm_device_uio_rmtfs);
+}
 
 static struct platform_device *msm_sdcc_devices[] __initdata = {
 	&msm_device_sdc1,
@@ -2846,7 +2848,7 @@ static struct resource msm_mdp_resources[] = {
 	{
 		.name   = "mdp",
 		.start  = MDP_HW_BASE,
-		.end    = MDP_HW_BASE + 0x000F0000 - 1,
+		.end    = MDP_HW_BASE + 0x00100000 - 1,
 		.flags  = IORESOURCE_MEM,
 	},
 	{

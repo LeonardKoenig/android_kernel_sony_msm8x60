@@ -229,7 +229,9 @@ long mlock_vma_pages_range(struct vm_area_struct *vma,
 
 	if (!((vma->vm_flags & (VM_DONTEXPAND | VM_RESERVED)) ||
 			is_vm_hugetlb_page(vma) ||
-			vma == get_gate_vma(current->mm))) {
+			vma == get_gate_vma(current->mm) ||
+			((use_user_accessible_timers() &&
+				(vma == get_user_timers_vma(current->mm)))))) {
 
 		__mlock_vma_pages_range(vma, start, end, NULL);
 

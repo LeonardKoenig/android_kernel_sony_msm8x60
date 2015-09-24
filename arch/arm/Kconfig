@@ -271,7 +271,7 @@ config ARCH_RANDOM
 	 random number generation
 
 	 If unsure, say N
-	 
+
 config GENERIC_TIME_VSYSCALL
 	bool "Enable gettimeofday updates"
 	depends on CPU_V7
@@ -294,7 +294,6 @@ config ARM_USER_ACCESSIBLE_TIMER_BASE
 	 Specify the base user-space virtual address where the user-accessible
 	 timer counter page should be mapped by the kernel.  User-space apps
 	 will read directly from the page at this address.
-
 
 source "init/Kconfig"
 
@@ -319,7 +318,6 @@ choice
 
 config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
-	select ARCH_HAS_CPUFREQ
 	select ARM_AMBA
 	select ARCH_HAS_CPUFREQ
 	select CLKDEV_LOOKUP
@@ -2239,6 +2237,13 @@ config KEXEC
 	  is properly shutdown, so do not be surprised if this code does not
 	  initially work for you.  It may help to enable device hotplugging
 	  support.
+
+config CRASH_NOTES
+	bool "Support for storing crash_notes"
+	default n
+	help
+	  Expose crash_notes and fill it with register values at the time of
+	  panic.
 
 config ATAGS_PROC
 	bool "Export atags in procfs"

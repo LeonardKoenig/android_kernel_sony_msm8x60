@@ -6,7 +6,6 @@ obj-y += timer.o
 endif
 obj-y += clock.o clock-voter.o clock-dummy.o
 obj-y += modem_notifier.o subsystem_map.o
-obj-$(CONFIG_CPU_FREQ_MSM) += cpufreq.o
 obj-$(CONFIG_DEBUG_FS) += nohlt.o clock-debug.o
 obj-$(CONFIG_KEXEC) += msm_kexec.o
 
@@ -23,6 +22,7 @@ endif
 endif
 
 obj-y += acpuclock.o
+obj-$(CONFIG_HW_PERF_EVENTS) += perf_trace_counters.o
 obj-$(CONFIG_ARCH_MSM_KRAIT) += acpuclock-krait.o
 obj-$(CONFIG_ARCH_MSM7X27) += acpuclock-7627.o clock-pll.o
 obj-$(CONFIG_ARCH_MSM_SCORPION) += pmu.o
@@ -92,10 +92,6 @@ obj-$(CONFIG_ARCH_QSD8X50) += sirc.o
 obj-$(CONFIG_ARCH_FSM9XXX) += sirc-fsm9xxx.o
 obj-$(CONFIG_MSM_FIQ_SUPPORT) += fiq_glue.o
 obj-$(CONFIG_MACH_TROUT) += board-trout-rfkill.o
-obj-$(CONFIG_MSM_SDIO_AL) += sdio_al.o
-obj-$(CONFIG_MSM_SDIO_AL) += sdio_al_test.o
-obj-$(CONFIG_MSM_SDIO_AL) += sdio_al_dloader.o
-obj-$(CONFIG_MSM_SDIO_DMUX) += sdio_dmux.o
 obj-$(CONFIG_MSM_BAM_DMUX) += bam_dmux.o
 obj-$(CONFIG_MSM_SMD_LOGGING) += smem_log.o
 obj-$(CONFIG_MSM_IPC_LOGGING) += ipc_logging.o
@@ -129,13 +125,10 @@ endif
 endif
 
 obj-$(CONFIG_MSM_HSIC_TTY) += hsic_tty.o
-obj-$(CONFIG_MSM_SDIO_TTY) += sdio_tty.o
 obj-$(CONFIG_MSM_SMD_TTY) += smd_tty.o
 obj-$(CONFIG_MSM_SMD_QMI) += smd_qmi.o
 obj-$(CONFIG_MSM_SMD_PKT) += smd_pkt.o
-obj-$(CONFIG_MSM_SDIO_CMUX) += sdio_cmux.o
 obj-$(CONFIG_MSM_DSPS) += msm_dsps.o
-obj-$(CONFIG_MSM_SDIO_CTL) += sdio_ctl.o
 obj-$(CONFIG_MSM_SMD_NMEA) += smd_nmea.o
 obj-$(CONFIG_MSM_RESET_MODEM) += reset_modem.o
 obj-$(CONFIG_MSM_IPC_ROUTER_SMD_XPRT) += ipc_router_smd_xprt.o
@@ -150,7 +143,6 @@ obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter_servers.o
 obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter_clients.o
 obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter_xdr.o
 obj-$(CONFIG_MSM_ONCRPCROUTER) += rpcrouter_smd_xprt.o
-obj-$(CONFIG_MSM_RPC_SDIO_XPRT) += rpcrouter_sdio_xprt.o
 obj-$(CONFIG_MSM_RPC_PING) += ping_mdm_rpc_client.o
 obj-$(CONFIG_MSM_RPC_PROC_COMM_TEST) += proc_comm_test.o
 obj-$(CONFIG_MSM_RPC_PING) += ping_mdm_rpc_client.o ping_apps_server.o
@@ -162,10 +154,7 @@ obj-$(CONFIG_MSM_DALRPC) += dal.o
 obj-$(CONFIG_MSM_DALRPC_TEST) += dal_remotetest.o
 obj-$(CONFIG_ARCH_MSM7X30) += dal_axi.o
 obj-$(CONFIG_ARCH_MSM7X27A) += dal_axi.o
-obj-$(CONFIG_MSM_ADSP) += qdsp5/
-obj-$(CONFIG_MSM7KV2_AUDIO) += qdsp5v2/
 obj-$(CONFIG_MSM_RPCSERVER_HANDSET) += rpc_server_handset.o
-obj-$(CONFIG_MSM_QDSP6) += qdsp6/
 obj-$(CONFIG_MSM8X60_AUDIO) += qdsp6v2/
 obj-$(CONFIG_MSM_AUDIO_QDSP6) += qdsp6v2/
 obj-$(CONFIG_MSM_AUDIO_QDSP6V2) += qdsp6v2/
@@ -331,6 +320,30 @@ obj-$(CONFIG_MACH_BLUE_HAYABUSA) += gyro-sony_common.o board-blue_hayabusa-mpu.o
 #viskan
 board-viskan-all-objs += board-viskan.o board-viskan-display.o board-viskan-storage.o
 
+#blue
+board-blue-all-objs += board-blue.o board-blue-display.o board-blue-storage.o
+
+obj-$(CONFIG_MACH_BLUE_CDB) += board-blue-all.o board-blue_cdb-pmic.o board-blue_cdb-gpiomux.o board-blue_cdb-regulator.o
+obj-$(CONFIG_MACH_BLUE_CDB) += gyro-sony_common.o board-blue_cdb-mpu.o board-blue_cdb-leds.o board-blue_cdb-camera.o board-blue_cdb-usb.o
+obj-$(CONFIG_MACH_BLUE_CDB) += irda-blue_common.o
+obj-$(CONFIG_MACH_BLUE_CDB) += oneseg-blue_common.o
+
+obj-$(CONFIG_MACH_BLUE_TSUBASA) += board-blue-all.o board-blue_tsubasa-pmic.o board-blue_tsubasa-gpiomux.o board-blue_tsubasa-regulator.o bms-batterydata-august.o
+obj-$(CONFIG_MACH_BLUE_TSUBASA) += gyro-sony_common.o board-blue_tsubasa-mpu.o board-blue_tsubasa-leds.o board-blue_tsubasa-camera.o board-blue_tsubasa-usb.o
+
+
+obj-$(CONFIG_MACH_BLUE_MINT) += board-blue-all.o board-blue_mint-pmic.o board-blue_mint-gpiomux.o board-blue_mint-regulator.o bms-batterydata-mentos.o
+obj-$(CONFIG_MACH_BLUE_MINT) += gyro-sony_common.o board-blue_mint-mpu.o board-blue_mint-camera.o board-blue_mint-leds.o board-blue_mint-usb.o
+
+obj-$(CONFIG_MACH_BLUE_HAYABUSA) += board-blue-all.o board-blue_hayabusa-pmic.o board-blue_hayabusa-gpiomux.o board-blue_hayabusa-regulator.o devices-8960.o bms-batterydata-falk.o
+obj-$(CONFIG_MACH_BLUE_HAYABUSA) += gyro-sony_common.o board-blue_hayabusa-mpu.o board-blue_hayabusa-camera.o board-blue_hayabusa-leds.o board-blue_hayabusa-usb.o
+
+#viskan
+board-viskan-all-objs += board-viskan.o board-viskan-display.o board-viskan-storage.o
+
+obj-$(CONFIG_MACH_VISKAN_HUASHAN) += board-viskan-all.o board-viskan_huashan-gpiomux.o board-viskan_huashan-pmic.o board-viskan_huashan-regulator.o bms-batterydata-sleipner.o
+obj-$(CONFIG_MACH_VISKAN_HUASHAN) += board-viskan_huashan-camera.o
+
 CFLAGS_msm_vibrator.o += -Idrivers/staging/android
 CFLAGS_board-9615.o += -Idrivers/usb/gadget
 
@@ -341,7 +354,6 @@ obj-$(CONFIG_TROUT_BATTCHG) += htc_battery.o
 obj-$(CONFIG_HTC_PWRSINK) += htc_pwrsink.o
 obj-$(CONFIG_HTC_HEADSET) += htc_headset.o
 obj-$(CONFIG_MSM_RMT_STORAGE_CLIENT) += rmt_storage_client.o
-obj-$(CONFIG_MSM_SDIO_SMEM) += sdio_smem.o
 obj-$(CONFIG_MSM_RPM) += rpm.o
 ifdef CONFIG_MSM_RPM
 	obj-$(CONFIG_ARCH_APQ8064) += rpm_resources.o
@@ -428,3 +440,5 @@ CFLAGS_board-rdtags.o	:= \
 	-D"INFO_PRODUCT=\"$(if $(TARGET_PRODUCT),$(TARGET_PRODUCT),unknown)\"" \
 	-D"INFO_VARIANT=\"$(if $(TARGET_BUILD_VARIANT),$(TARGET_BUILD_VARIANT),unknown)\"" \
 	-D"INFO_BUILDID=\"$(if $(SEMC_SYSTEM_VERSION),$(SEMC_SYSTEM_VERSION),private)\""
+
+obj-$(CONFIG_CPU_FREQ_MSM) += cpufreq.o

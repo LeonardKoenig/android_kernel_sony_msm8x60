@@ -3700,7 +3700,7 @@ static struct msm_rpmrs_level msm_rpmrs_levels[] = {
 		415, 715, 340827, 475,
 	},
 
-#ifndef CONFIG_MACH_BLUE_MINT
+#ifdef CONFIG_MACH_BLUE_TSUBASA
 	{
 		MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE,
 		MSM_RPMRS_LIMITS(ON, ACTIVE, MAX, ACTIVE),

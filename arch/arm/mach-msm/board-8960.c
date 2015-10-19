@@ -1358,6 +1358,7 @@ static struct mdm_platform_data sglte_platform_data = {
 	.ramdump_timeout_ms = 600000,
 	.no_powerdown_after_ramdumps = 1,
 	.image_upgrade_supported = 1,
+	.subsys_name = "external_modem"
 };
 
 #define MSM_TSIF0_PHYS			(0x18200000)
@@ -2880,7 +2881,6 @@ static struct platform_device *common_devices[] __initdata = {
 	&msm8960_cache_dump_device,
 	&msm8960_iommu_domain_device,
 	&msm_tsens_device,
-	&msm8960_pc_cntr,
 	&msm8960_cpu_slp_status,
 };
 
@@ -2960,14 +2960,21 @@ static void __init msm8960_gfx_init(void)
 
 	/* Fixup data that needs to change based on GPU ID */
 	if (cpu_is_msm8960ab()) {
-		if (SOCINFO_VERSION_MINOR(soc_platform_version) == 0)
-			kgsl_3d0_pdata->chipid = ADRENO_CHIPID(3, 2, 1, 0);
-		else
-			kgsl_3d0_pdata->chipid = ADRENO_CHIPID(3, 2, 1, 1);
+		kgsl_3d0_pdata->chipid = ADRENO_CHIPID(3, 2, 1, 0);
 		/* 8960PRO nominal clock rate is 320Mhz */
 		kgsl_3d0_pdata->pwrlevel[1].gpu_freq = 320000000;
+
+		/*
+		 * If this an A320 GPU device (MSM8960AB), then
+		 * switch the resource table to 8960AB, to reflect the
+		 * separate register and shader memory mapping used in A320.
+		 */
+
+		msm_kgsl_3d0.num_resources = kgsl_num_resources_8960ab;
+		msm_kgsl_3d0.resource = kgsl_3d0_resources_8960ab;
 	} else {
 		kgsl_3d0_pdata->iommu_count = 1;
+
 		if (SOCINFO_VERSION_MAJOR(soc_platform_version) == 1) {
 			kgsl_3d0_pdata->pwrlevel[0].gpu_freq = 320000000;
 			kgsl_3d0_pdata->pwrlevel[1].gpu_freq = 266667000;
@@ -3411,11 +3418,13 @@ static void __init msm8960_cdp_init(void)
  	if (cpu_is_msm8960ab())
 		msm8960ab_update_krait_spm();
 	if (cpu_is_krait_v3()) {
-		msm_pm_set_tz_retention_flag(0);
+		struct msm_pm_init_data_type *pdata =
+			msm8960_pm_8x60.dev.platform_data;
+		pdata->retention_calls_tz = false;
 		msm8960ab_update_retention_spm();
-	} else {
-		msm_pm_set_tz_retention_flag(1);
 	}
+	platform_device_register(&msm8960_pm_8x60);
+
 	msm_spm_init(msm_spm_data, ARRAY_SIZE(msm_spm_data));
 	msm_spm_l2_init(msm_spm_l2_data);
 	msm8960_init_buses();

@@ -82,7 +82,7 @@ struct subsys_device {
 	void *restart_order;
 };
 
-static int enable_ramdumps;
+static int enable_ramdumps=1;
 module_param(enable_ramdumps, int, S_IRUGO | S_IWUSR);
 
 struct workqueue_struct *ssr_wq;
@@ -629,16 +629,12 @@ static int __init ssr_init_soc_restart_orders(void)
 		mutex_init(&restart_orders[i]->shutdown_lock);
 	}
 
-	if (restart_orders == NULL || n_restart_orders < 1) {
-		WARN_ON(1);
-	}
-
 	return 0;
 }
 
 static int __init subsys_restart_init(void)
 {
-	restart_level = RESET_SOC;
+	restart_level = RESET_SUBSYS_INDEPENDENT;
 
 	ssr_wq = alloc_workqueue("ssr_wq", WQ_CPU_INTENSIVE, 0);
 	if (!ssr_wq)

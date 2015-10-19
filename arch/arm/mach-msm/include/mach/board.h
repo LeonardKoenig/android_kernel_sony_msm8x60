@@ -442,6 +442,7 @@ struct lcd_panel_platform_data {
 struct mipi_dsi_platform_data {
 	int vsync_gpio;
 	int (*dsi_power_save)(int on);
+	int (*panel_lp_en)(int on);
 	int (*dsi_client_reset)(void);
 	int (*get_lane_config)(void);
 	char (*splash_is_enabled)(void);
@@ -604,6 +605,7 @@ void mpq8092_init_gpiomux(void);
 struct mmc_platform_data;
 int msm_add_sdcc(unsigned int controller,
 		struct mmc_platform_data *plat);
+int msm_add_uio(void);
 
 void msm_pm_register_irqs(void);
 struct msm_usb_host_platform_data;

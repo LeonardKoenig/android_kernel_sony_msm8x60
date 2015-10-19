@@ -219,7 +219,7 @@ int mdp_dsi_video_on(struct platform_device *pdev)
 		mdp_pipe_ctrl(MDP_CMD_BLOCK,
 			MDP_BLOCK_POWER_OFF, FALSE);
 		MDP_OUTP(MDP_BASE + DSI_VIDEO_BASE, 0);
-		mipi_dsi_controller_cfg(0);
+		mipi_dsi_controller_cfg_toggle(0);
 	}
 
 	MDP_OUTP(MDP_BASE + DSI_VIDEO_BASE + 0x4, hsync_ctrl);
@@ -312,7 +312,7 @@ void mdp_dsi_video_update(struct msm_fb_data_type *mfd)
 	unsigned long flag;
 	int irq_block = MDP_DMA2_TERM;
 
-	if (!mfd->panel_power_on)
+	if (mdp_fb_is_power_off(mfd))
 		return;
 
 	down(&mfd->dma->mutex);

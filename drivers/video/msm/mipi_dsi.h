@@ -190,7 +190,7 @@ struct dsi_clk_desc {
 #define DSI_HDR_DATA1(data)	((data) & 0x0ff)
 #define DSI_HDR_WC(wc)		((wc) & 0x0ffff)
 
-#define DSI_BUF_SIZE	64
+#define DSI_BUF_SIZE	80
 #define MIPI_DSI_MRPS	0x04	/* Maximum Return Packet Size */
 
 #define MIPI_DSI_LEN 8 /* 4 x 4 - 6 - 2, bytes dcs header+crc-align  */
@@ -325,6 +325,7 @@ void mipi_dsi_post_kickoff_add(struct dsi_kickoff_action *act);
 void mipi_dsi_pre_kickoff_del(struct dsi_kickoff_action *act);
 void mipi_dsi_post_kickoff_del(struct dsi_kickoff_action *act);
 void mipi_dsi_controller_cfg(int enable);
+void mipi_dsi_controller_cfg_toggle(int enable);
 void mipi_dsi_sw_reset(void);
 void mipi_dsi_mdp_busy_wait(void);
 

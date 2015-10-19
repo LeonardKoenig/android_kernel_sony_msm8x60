@@ -526,7 +526,7 @@ int mdp4_dsi_video_splash_done(void)
 	vctrl = &vsync_ctrl_db[cndx];
 
 	mdp4_dsi_video_tg_off(vctrl);
-	mipi_dsi_controller_cfg(0);
+	mipi_dsi_controller_cfg_toggle(0);
 
 	return 0;
 }
@@ -1187,7 +1187,7 @@ void mdp4_dsi_video_overlay(struct msm_fb_data_type *mfd)
 	vctrl = &vsync_ctrl_db[cndx];
 	pipe = vctrl->base_pipe;
 
-	if (!pipe || !mfd->panel_power_on) {
+	if (!pipe || mdp_fb_is_power_off(mfd)) {
 		mutex_unlock(&mfd->dma->ov_mutex);
 		return;
 	}

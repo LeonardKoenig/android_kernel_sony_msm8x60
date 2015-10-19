@@ -84,3 +84,10 @@ GTAGS
 *.orig
 *~
 \#*#
+
+#
+merged_to_cm*
+conflicting*
+caf_to*
+cm-12_to_*
+merge_skip-*

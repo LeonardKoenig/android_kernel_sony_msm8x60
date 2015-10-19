@@ -96,15 +96,16 @@ static raw_spinlock_t *kretprobe_table_lock_ptr(unsigned long hash)
  */
 static struct kprobe_blackpoint kprobe_blacklist[] = {
 	{"preempt_schedule",},
+#ifdef CONFIG_X86
 	{"native_get_debugreg",},
 	{"irq_entries_start",},
 	{"common_interrupt",},
+#endif
 	{"mcount",},	/* mcount can be called from everywhere */
 	{NULL}    /* Terminator */
 };
 
-/*
- * it can take some time ( > 100ms ) to initialize the
+/* it can take some time ( > 100ms ) to initialise the
  * blacklist so we delay this until we actually need it
  */
 static void init_kprobe_blacklist(void)
@@ -116,6 +117,7 @@ static void init_kprobe_blacklist(void)
 	void *addr;
 	struct kprobe_blackpoint *kb;
 
+	printk(KERN_INFO "Initialising kprobe blacklist");
 	/*
 	 * Lookup and populate the kprobe_blacklist.
 	 *
@@ -144,8 +146,8 @@ static void init_kprobe_blacklist(void)
 			kprobe_lookup_name(kretprobe_blacklist[i].name,
 					   kretprobe_blacklist[i].addr);
 			if (!kretprobe_blacklist[i].addr)
-				printk(KERN_ERR "kretprobe:lookup failed: %s\n",
-					kretprobe_blacklist[i].name);
+				printk("kretprobe: lookup failed: %s\n",
+				       kretprobe_blacklist[i].name);
 		}
 	}
 	kprobe_blacklist_initialized = 1;

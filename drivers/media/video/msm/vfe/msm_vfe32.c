@@ -1,4 +1,5 @@
-/* Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2014, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2013 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -6234,6 +6235,9 @@ static struct msm_cam_clk_info vfe32_clk_info[] = {
 	{"vfe_clk", 228570000},
 	{"vfe_pclk", -1},
 	{"csi_vfe_clk", -1},
+#if defined(CONFIG_SONY_CAM_V4L2)
+	{"dfab_clk", 64000000},
+#endif
 };
 
 int msm_axi_subdev_s_crystal_freq(struct v4l2_subdev *sd,
@@ -6273,8 +6277,8 @@ static const struct v4l2_subdev_ops msm_vfe_subdev_ops = {
 	.core = &msm_vfe_subdev_core_ops,
 };
 
-int msm_axi_subdev_init_rdi_only(struct v4l2_subdev *sd,
-	uint8_t dual_enabled, struct msm_sensor_ctrl_t *s_ctrl)
+int msm_axi_subdev_init(struct v4l2_subdev *sd,
+	uint8_t dual_enabled)
 {
 	int rc = 0;
 	struct axi_ctrl_t *axi_ctrl = v4l2_get_subdevdata(sd);
@@ -6345,47 +6349,6 @@ int msm_axi_subdev_init_rdi_only(struct v4l2_subdev *sd,
 		rc = -ENODEV;
 		goto device_misc_attach_failed;
 	}
-#endif
-
-	if (s_ctrl) {
-		msm_camio_bus_scale_cfg(
-				s_ctrl->sensordata->pdata->cam_bus_scale_table,
-				S_INIT);
-
-		CDBG("%s: axi_ctrl->share_ctrl->dual_enabled ? = %d\n", __func__
-				, axi_ctrl->share_ctrl->dual_enabled);
-		if (axi_ctrl->share_ctrl->dual_enabled) {
-			pr_debug("%s: Scaling bus config for dual bus vectors\n"
-					, __func__);
-			msm_camio_bus_scale_cfg(
-				s_ctrl->sensordata->pdata->cam_bus_scale_table,
-				S_DUAL);
-		} else
-			msm_camio_bus_scale_cfg(
-				s_ctrl->sensordata->pdata->cam_bus_scale_table,
-				S_PREVIEW);
-	} else
-		pr_err("%s: Null sensor control info\n", __func__);
-
-	if (msm_camera_io_r(
-		axi_ctrl->share_ctrl->vfebase + V32_GET_HW_VERSION_OFF) ==
-		VFE32_HW_NUMBER)
-		axi_ctrl->share_ctrl->register_total = VFE32_REGISTER_TOTAL;
-	else
-		axi_ctrl->share_ctrl->register_total = VFE33_REGISTER_TOTAL;
-
-	spin_lock_init(&axi_ctrl->share_ctrl->stop_flag_lock);
-	spin_lock_init(&axi_ctrl->share_ctrl->update_ack_lock);
-	spin_lock_init(&axi_ctrl->share_ctrl->start_ack_lock);
-
-	enable_irq(axi_ctrl->vfeirq->start);
-
-	return rc;
-
-#ifdef CONFIG_MSM_IOMMU
-device_misc_attach_failed:
-	iommu_detach_device(camera_domain, axi_ctrl->iommu_ctx_imgwr);
-device_imgwr_attach_failed:
 #endif
 
 

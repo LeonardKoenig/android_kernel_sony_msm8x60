@@ -2928,6 +2928,8 @@ static struct platform_device *mplatform_common_devices[] __initdata = {
 #if defined(CONFIG_QSEECOM)
 	&qseecom_device,
 #endif
+	&msm8064_cpu_slp_status,
+};
 
 	&msm_8064_device_tsif[0],
 	&msm_8064_device_tsif[1],
@@ -4278,6 +4280,22 @@ static void __init apq8064_common_init(void)
 	platform_device_register(&apq8064_slim_ctrl);
 	slim_register_board_info(apq8064_slim_devices,
 		ARRAY_SIZE(apq8064_slim_devices));
+	if (!PLATFORM_IS_MPQ8064()) {
+		apq8064_init_dsps();
+		platform_device_register(&msm_8960_riva);
+	}
+	if (cpu_is_apq8064ab())
+		apq8064ab_update_krait_spm();
+	if (cpu_is_krait_v3()) {
+		struct msm_pm_init_data_type *pdata =
+			msm8064_pm_8x60.dev.platform_data;
+		pdata->retention_calls_tz = false;
+		apq8064ab_update_retention_spm();
+	}
+	platform_device_register(&msm8064_pm_8x60);
+
+	msm_spm_init(msm_spm_data, ARRAY_SIZE(msm_spm_data));
+	msm_spm_l2_init(msm_spm_l2_data);
 	BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
 	apq8064_epm_adc_init();
 }

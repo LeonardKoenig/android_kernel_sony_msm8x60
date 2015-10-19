@@ -28,6 +28,67 @@ struct wakelock {
 #endif
 };
 
+#ifdef CONFIG_PM_DEBUG
+/* debug status of active wakelock held and when entering PM transition */
+static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP | DEBUG_SUSPEND;
+#else
+static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP;
+#endif
+
+module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
+#define WAKE_LOCK_TYPE_MASK              (0x0f)
+#define WAKE_LOCK_INITIALIZED            (1U << 8)
+#define WAKE_LOCK_ACTIVE                 (1U << 9)
+#define WAKE_LOCK_AUTO_EXPIRE            (1U << 10)
+#define WAKE_LOCK_PREVENTING_SUSPEND     (1U << 11)
+
+static DEFINE_SPINLOCK(list_lock);
+static LIST_HEAD(inactive_locks);
+static struct list_head active_wake_locks[WAKE_LOCK_TYPE_COUNT];
+static int current_event_num;
+static int suspend_sys_sync_count;
+static DEFINE_SPINLOCK(suspend_sys_sync_lock);
+static struct workqueue_struct *suspend_sys_sync_work_queue;
+static DECLARE_COMPLETION(suspend_sys_sync_comp);
+struct workqueue_struct *suspend_work_queue;
+struct wake_lock main_wake_lock;
+suspend_state_t requested_suspend_state = PM_SUSPEND_MEM;
+static struct wake_lock unknown_wakeup;
+static struct wake_lock suspend_backoff_lock;
+
+#define SUSPEND_BACKOFF_THRESHOLD	10
+#define SUSPEND_BACKOFF_INTERVAL	10000
+
+static unsigned suspend_short_count;
+
+#ifdef CONFIG_WAKELOCK_STAT
+static struct wake_lock deleted_wake_locks;
+static ktime_t last_sleep_time_update;
+static int wait_for_wakeup;
+
+int get_expired_time(struct wake_lock *lock, ktime_t *expire_time)
+{
+	struct timespec ts;
+	struct timespec kt;
+	struct timespec tomono;
+	struct timespec delta;
+	struct timespec sleep;
+	long timeout;
+
+	if (!(lock->flags & WAKE_LOCK_AUTO_EXPIRE))
+		return 0;
+	get_xtime_and_monotonic_and_sleep_offset(&kt, &tomono, &sleep);
+	timeout = lock->expires - jiffies;
+	if (timeout > 0)
+		return 0;
+	jiffies_to_timespec(-timeout, &delta);
+	set_normalized_timespec(&ts, kt.tv_sec + tomono.tv_sec - delta.tv_sec,
+				kt.tv_nsec + tomono.tv_nsec - delta.tv_nsec);
+	*expire_time = timespec_to_ktime(ts);
+	return 1;
+}
+
 static struct rb_root wakelocks_tree = RB_ROOT;
 
 ssize_t pm_show_wakelocks(char *buf, bool show_active)

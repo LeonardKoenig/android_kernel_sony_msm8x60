@@ -884,6 +884,10 @@ static struct wcd9xxx_pdata tabla_platform_data = {
 		.bias2_cfilt_sel = TABLA_CFILT2_SEL,
 		.bias3_cfilt_sel = TABLA_CFILT3_SEL,
 		.bias4_cfilt_sel = TABLA_CFILT3_SEL,
+		.bias1_ext_cap = 0,
+		.bias2_ext_cap = 1,
+		.bias3_ext_cap = 0,
+		.bias4_ext_cap = 0,
 	},
 	.regulator = {
 	{
@@ -951,6 +955,10 @@ static struct wcd9xxx_pdata tabla20_platform_data = {
 		.bias2_cfilt_sel = TABLA_CFILT2_SEL,
 		.bias3_cfilt_sel = TABLA_CFILT3_SEL,
 		.bias4_cfilt_sel = TABLA_CFILT3_SEL,
+		.bias1_ext_cap = 0,
+		.bias2_ext_cap = 1,
+		.bias3_ext_cap = 0,
+		.bias4_ext_cap = 0,
 	},
 	.regulator = {
 	{
@@ -2858,7 +2866,6 @@ static struct platform_device *common_devices[] __initdata = {
 	&msm8960_cache_dump_device,
 	&msm8960_iommu_domain_device,
 	&msm_tsens_device,
-	&msm8960_pc_cntr,
 	&msm8960_cpu_slp_status,
 };
 
@@ -2936,10 +2943,7 @@ static void __init msm8960_gfx_init(void)
 
 	/* Fixup data that needs to change based on GPU ID */
 	if (cpu_is_msm8960ab()) {
-		if (SOCINFO_VERSION_MINOR(soc_platform_version) == 0)
-			kgsl_3d0_pdata->chipid = ADRENO_CHIPID(3, 2, 1, 0);
-		else
-			kgsl_3d0_pdata->chipid = ADRENO_CHIPID(3, 2, 1, 1);
+		kgsl_3d0_pdata->chipid = ADRENO_CHIPID(3, 2, 1, 0);
 		/* 8960PRO nominal clock rate is 320Mhz */
 		kgsl_3d0_pdata->pwrlevel[1].gpu_freq = 320000000;
 
@@ -3397,11 +3401,13 @@ static void __init msm8960_cdp_init(void)
  	if (cpu_is_msm8960ab())
 		msm8960ab_update_krait_spm();
 	if (cpu_is_krait_v3()) {
-		msm_pm_set_tz_retention_flag(0);
+		struct msm_pm_init_data_type *pdata =
+			msm8960_pm_8x60.dev.platform_data;
+		pdata->retention_calls_tz = false;
 		msm8960ab_update_retention_spm();
-	} else {
-		msm_pm_set_tz_retention_flag(1);
 	}
+	platform_device_register(&msm8960_pm_8x60);
+
 	msm_spm_init(msm_spm_data, ARRAY_SIZE(msm_spm_data));
 	msm_spm_l2_init(msm_spm_l2_data);
 	msm8960_init_buses();

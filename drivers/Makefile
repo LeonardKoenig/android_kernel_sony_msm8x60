@@ -13,8 +13,7 @@ obj-$(CONFIG_PARISC)		+= parisc/
 obj-$(CONFIG_RAPIDIO)		+= rapidio/
 obj-y				+= i2c/
 obj-y				+= video/
-obj-y				+= media/
-obj-$(CONFIG_SWITCH)		+= switch/
+obj-y				+= leds/
 obj-y				+= idle/
 obj-$(CONFIG_ACPI)		+= acpi/
 obj-$(CONFIG_SFI)		+= sfi/
@@ -39,6 +38,7 @@ obj-y				+= char/
 
 # gpu/ comes after char for AGP vs DRM startup
 obj-y				+= gpu/
+obj-$(CONFIG_RMI4_BUS)		+= rmi4/
 
 obj-$(CONFIG_CONNECTOR)		+= connector/
 
@@ -104,7 +104,7 @@ obj-$(CONFIG_CPU_FREQ)		+= cpufreq/
 obj-$(CONFIG_CPU_IDLE)		+= cpuidle/
 obj-y				+= mmc/
 obj-$(CONFIG_MEMSTICK)		+= memstick/
-obj-y				+= leds/
+obj-$(CONFIG_SWITCH)		+= switch/
 obj-$(CONFIG_INFINIBAND)	+= infiniband/
 obj-$(CONFIG_SGI_SN)		+= sn/
 obj-y				+= firmware/
@@ -143,8 +143,7 @@ obj-$(CONFIG_PM_DEVFREQ)	+= devfreq/
 #MobiCore
 obj-$(CONFIG_MOBICORE_SUPPORT)  += gud/
 
+obj-$(CONFIG_CYPRESS_CYTTSP4_BUS)	+= ttsp/
+
 obj-$(CONFIG_CORESIGHT)		+= coresight/
-
-#sensor_class
-obj-$(CONFIG_SENSORS)		+= sensors/
-
+obj-$(CONFIG_RMI4_BUS)		+= rmi4/

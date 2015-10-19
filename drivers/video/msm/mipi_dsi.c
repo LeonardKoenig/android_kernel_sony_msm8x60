@@ -47,6 +47,8 @@ static int mipi_dsi_off(struct platform_device *pdev);
 static int mipi_dsi_on(struct platform_device *pdev);
 static int mipi_dsi_fps_level_change(struct platform_device *pdev,
 					u32 fps_level);
+static int mipi_dsi_low_power_config(struct platform_device *pdev,
+					int enable);
 
 static struct platform_device *pdev_list[MSM_FB_MAX_DEV_LIST];
 static int pdev_list_cnt;
@@ -71,6 +73,17 @@ static int mipi_dsi_fps_level_change(struct platform_device *pdev,
 	mipi_dsi_wait4video_done();
 	mipi_dsi_configure_fb_divider(fps_level);
 	return 0;
+}
+
+static int mipi_dsi_low_power_config(struct platform_device *pdev,
+					int enable)
+{
+	int ret = 0;
+
+	if (mipi_dsi_pdata && mipi_dsi_pdata->panel_lp_en)
+		ret = mipi_dsi_pdata->panel_lp_en(enable);
+
+	return ret;
 }
 
 static int mipi_dsi_off(struct platform_device *pdev)
@@ -346,7 +359,6 @@ static int mipi_dsi_late_init(struct platform_device *pdev)
 	return panel_next_late_init(pdev);
 }
 
-
 static int mipi_dsi_resource_initialized;
 
 static int mipi_dsi_probe(struct platform_device *pdev)
@@ -493,6 +505,7 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	pdata->on = mipi_dsi_on;
 	pdata->off = mipi_dsi_off;
 	pdata->fps_level_change = mipi_dsi_fps_level_change;
+	pdata->low_power_config = mipi_dsi_low_power_config;
 	pdata->late_init = mipi_dsi_late_init;
 	pdata->early_off = mipi_dsi_early_off;
 	pdata->next = pdev;
@@ -502,7 +515,7 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	 */
 	mfd->panel_info = pdata->panel_info;
 	pinfo = &mfd->panel_info;
-
+	esc_byte_ratio = pinfo->mipi.esc_byte_ratio;
 	if (mfd->panel_info.type == MIPI_VIDEO_PANEL)
 		mfd->dest = DISPLAY_LCDC;
 	else
@@ -605,12 +618,8 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 
 	pdev_list[pdev_list_cnt++] = pdev;
 
-	esc_byte_ratio = pinfo->mipi.esc_byte_ratio;
-
-	if (pinfo->pdest != DISPLAY_4) {
-		if (!mfd->cont_splash_done)
-			cont_splash_clk_ctrl(1);
-	}
+	if (!mfd->cont_splash_done)
+		cont_splash_clk_ctrl(1);
 
 return 0;
 

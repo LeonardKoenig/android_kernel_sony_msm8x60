@@ -1,5 +1,5 @@
-/* Copyright (c) 2011-2012, 2014-2015,
- * The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2013 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -201,24 +201,9 @@
 #define HFR_MODE_OFF 1
 #define VFE_FRAME_SKIP_PERIOD_MASK 0x0000001F /*bits 0 -4*/
 
-/* Move from msm_vfe32.c */
-#define VFE32_AXI_OFFSET 0x0050
-#define vfe32_get_ch_ping_addr(base, chn) \
-	(msm_camera_io_r((base) + 0x0050 + 0x18 * (chn)))
-#define vfe32_get_ch_pong_addr(base, chn) \
-	(msm_camera_io_r((base) + 0x0050 + 0x18 * (chn) + 4))
-#define vfe32_get_ch_addr(ping_pong, base, chn) \
-	((((ping_pong) & (1 << (chn))) == 0) ? \
-	(vfe32_get_ch_pong_addr((base), chn)) : \
-	(vfe32_get_ch_ping_addr((base), chn)))
-#define vfe32_put_ch_ping_addr(base, chn, addr) \
-	(msm_camera_io_w((addr), (base) + 0x0050 + 0x18 * (chn)))
-#define vfe32_put_ch_pong_addr(base, chn, addr) \
-	(msm_camera_io_w((addr), (base) + 0x0050 + 0x18 * (chn) + 4))
-#define vfe32_put_ch_addr(ping_pong, base, chn, addr) \
-	(((ping_pong) & (1 << (chn))) == 0 ?   \
-	vfe32_put_ch_pong_addr((base), (chn), (addr)) : \
-	vfe32_put_ch_ping_addr((base), (chn), (addr)))
+#define VFE_RELOAD_ALL_WRITE_MASTERS 0x00003FFF
+
+#define BUS_OVERFLOW_THRESHOLD  5
 
 enum VFE32_DMI_RAM_SEL {
 	NO_MEM_SELECTED          = 0,
@@ -1047,7 +1032,11 @@ struct axi_ctrl_t {
 	struct resource	*vfemem;
 	struct resource *vfeio;
 	struct regulator *fs_vfe;
+#if defined(CONFIG_SONY_CAM_V4L2)
+	struct clk *vfe_clk[4];
+#else
 	struct clk *vfe_clk[3];
+#endif
 	struct tasklet_struct vfe32_tasklet;
 	struct vfe_share_ctrl_t *share_ctrl;
 	struct device *iommu_ctx_imgwr;

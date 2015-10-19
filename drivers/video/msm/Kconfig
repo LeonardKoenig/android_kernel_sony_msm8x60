@@ -176,6 +176,10 @@ config FB_MSM_LCDC_PANEL
 	select FB_MSM_LCDC
 	default n
 
+config FB_MSM_MIPI_DSI_VENDOR_DET
+	bool
+	default n
+
 config FB_MSM_MIPI_DSI_TOSHIBA
 	bool
 	select FB_MSM_MIPI_DSI
@@ -194,6 +198,22 @@ config FB_MSM_MIPI_DSI_RENESAS
 config FB_MSM_MIPI_DSI_TRULY
 	bool
 	select FB_MSM_MIPI_DSI
+
+config FB_MSM_MIPI_DSI_RENESAS_R63306
+	bool
+	select FB_MSM_MIPI_DSI
+	default n
+
+config FB_MSM_MIPI_DSI_SAMSUNG_S6D6AA0
+	bool
+	select FB_MSM_MIPI_DSI
+	select FB_MSM_MIPI_DSI_VENDOR_DET
+	default n
+
+config FB_MSM_MIPI_DSI_NOVATEK_NT35565
+	bool
+	select FB_MSM_MIPI_DSI
+	default n
 
 config FB_MSM_MIPI_DSI_SIMULATOR
 	bool
@@ -456,8 +476,14 @@ config FB_MSM_WRITEBACK_MSM_PANEL
         bool "MDP overlay write back panel enable"
 	---help---
 	  Support for MDP4 OVERLAY write back mode
+
+config FB_MSM_PANEL_ECO_MODE
+        bool "PANEL ECO MODE support"
+        default n
+
 choice
 	prompt "LCD Panel"
+	optional
 	default FB_MSM_MDDI_AUTO_DETECT
 
 config FB_MSM_LCDC_PRISM_WVGA_PANEL
@@ -797,6 +823,95 @@ config FB_MSM_PANEL_NONE
 	  This will disable LCD panel
 endchoice
 
+config FB_MSM_MIPI_R63306_PANEL_SHARP_LS046K3SY01
+	bool "SHARP LS046K3SY01 Panel"
+	select FB_MSM_MIPI_DSI_RENESAS_R63306
+	---help---
+	Support SHARP LS046K3SY01 Panel.
+	This is video mode panel.
+	The resolution is 720X1280.
+	The DrIC is R63306.
+
+config FB_MSM_MIPI_R63306_PANEL_TMD_MDW30
+	bool "TMD MDW30 Panel"
+	select FB_MSM_MIPI_DSI_RENESAS_R63306
+	default n
+
+config FB_MSM_MIPI_R63306_PANEL_TMD_MDW30F
+	bool "TMD MDW30 Panel"
+	select FB_MSM_MIPI_DSI_RENESAS_R63306
+	default n
+
+config FB_MSM_MIPI_R63306_PANEL_TMD_MDV20
+	bool "TMD MDV20 Panel"
+	select FB_MSM_MIPI_DSI_RENESAS_R63306
+	default n
+
+config FB_MSM_MIPI_R63306_PANEL_TMD_MDV22
+	bool "TMD MDV22 Panel"
+	select FB_MSM_MIPI_DSI_RENESAS_R63306
+	default n
+
+config FB_MSM_MIPI_R63306_PANEL_TMD_MDX80
+	bool "TMD MDX80 Panel"
+	select FB_MSM_MIPI_DSI_RENESAS_R63306
+	default n
+
+config FB_MSM_MIPI_R63306_PANEL_SHARP_LS043K3SX01
+	bool "SHARP LS043K3SX01 Panel"
+	select FB_MSM_MIPI_DSI_RENESAS_R63306
+	default n
+
+config FB_MSM_MIPI_R63306_PANEL_SHARP_LS043K3SX04
+	bool "SHARP LS043K3SX04 Panel"
+	select FB_MSM_MIPI_DSI_RENESAS_R63306
+	default n
+
+config FB_MSM_MIPI_R63306_PANEL_HITACHI_DX12D900VM
+	bool "HITACHI DX12D900VM Panel"
+	select FB_MSM_MIPI_DSI_RENESAS_R63306
+	default n
+
+config FB_MSM_MIPI_R63306_PANEL_SHARP_LS043K3SX01F
+	bool "SHARP LS043K3SX01 Panel"
+	select FB_MSM_MIPI_DSI_RENESAS_R63306
+	default n
+
+config FB_MSM_MIPI_R63306_PANEL_SHARP_LS046K3SX01
+	bool "SHARP LS046K3SX01 Panel"
+	select FB_MSM_MIPI_DSI_RENESAS_R63306
+	default n
+
+config FB_MSM_MIPI_S6D6AA0_PANEL_SONY_ACX439AKM
+	bool "SONY ACX439AKM Panel"
+	select FB_MSM_MIPI_DSI_SAMSUNG_S6D6AA0
+	default n
+
+config FB_MSM_MIPI_S6D6AA0_PANEL_SONY_ACX444AKM
+	bool "SONY ACX444AKM Panel"
+	select FB_MSM_MIPI_DSI_SAMSUNG_S6D6AA0
+	default n
+
+config FB_MSM_MIPI_S6D6AA0_PANEL_SONY_ACX451AKM
+	bool "SONY ACX451AKM Panel"
+	select FB_MSM_MIPI_DSI_SAMSUNG_S6D6AA0
+	default n
+
+config FB_MSM_MIPI_NT35565_PANEL_SHARP_LS038K3SX01
+	bool "SHARP LS038K3SX01 Panel"
+	select FB_MSM_MIPI_DSI_NOVATEK_NT35565
+	default n
+
+config FB_MSM_MIPI_S6D6AA0_PANEL_AUO_H455TVN01
+	bool "AUO H455TVN01 Panel"
+	select FB_MSM_MIPI_DSI_SAMSUNG_S6D6AA0
+	default n
+	---help---
+	  Support AUO H455TVN01 Panel.
+	  This is video mode panel.
+	  The resolution is 720X1280.
+	  The DrIC is S6D6AA0.
+
 config LGIT_VIDEO_WXGA_CABC
 	bool "Content Adaptive Backlight Control on LGIT WXGA Panel"
 	default y
@@ -897,43 +1012,12 @@ config FB_MSM_HDMI_MSM_PANEL_CEC_SUPPORT
 	  Support for HDMI CEC Feature
 	  Choose to enable CEC
 
-config HDMI_DDC_ENABLED
-	bool "DDC_ENABLED"
+config FB_MSM_MHL_SII8334
+	depends on MHL && FB_MSM_HDMI_MSM_PANEL
+	bool "SiI8334 MHL Transmitter"
 	default n
 	---help---
-	HDMI slim driver flag
-	Support for enable/ disable DDC
-	When DDC disabled, will use default timing
-	DDC required for EDID and HDCP transactions
-
-config HDMI_EDID_ENABLED
-	depends on HDMI_DDC_ENABLED
-	bool "EDID_ENABLED"
-	default n
-	---help---
-	HDMI slim driver flag
-	Support for enable/ disable EDID
-	When EDID disabled, will use default timing
-	DDC required for EDID transactions
-
-config HDMI_MHL_ENABLED
-	depends on HDMI_EDID_ENABLED
-	bool "MHL_ENABLED"
-	default n
-	---help---
-	HDMI slim driver flag
-	Support for enable/ disable MHL
-	When enabled, needs EDID and DDC
-	When disabled no functionality
-
-config HDMI_HPD_ENABLED
-	bool "HPD_ENABLED"
-	default n
-	---help---
-	HDMI slim driver flag
-	Support for enable/ disable DDC
-	When DDC disabled, will use default timing
-	DDC required for EDID and HDCP transactions
+	  Support for SiI8334 MHL Transmitter
 
 config FB_MSM_HDMI_MHL_9244
 	depends on FB_MSM_HDMI_MSM_PANEL
@@ -952,6 +1036,10 @@ config FB_MSM_HDMI_MHL_8334
 	  Support the HDMI to MHL conversion.
 	  MHL (Mobile High-Definition Link) technology
 	  uses USB connector to output HDMI content
+
+config FB_MSM_RECOVER_PANEL
+	bool "Enable display recovery of NVM"
+	default n
 
 choice
 	depends on  (FB_MSM_MDP22 || FB_MSM_MDP31 || FB_MSM_MDP40)
